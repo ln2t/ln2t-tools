@@ -15,6 +15,7 @@ usage() {
     exit 1
 }
 
+# Check apptainer program is installed
 check_apptainer_is_installed() {
   if [ ! -f "${APPTAINER_CMD}" ]; then
     echo "Apptainer not found at ${APPTAINER_CMD}, are your sure it is installed?"
@@ -22,6 +23,7 @@ check_apptainer_is_installed() {
   fi
 }
 
+# Ensure apptainer image exists. If not, creates it.
 ensure_image_exists() {
     local apptainer_dir="$1"
     local version="$2"
@@ -45,6 +47,7 @@ ensure_image_exists() {
     export APPTAINER_IMG="${file_path}"
 }
 
+# Generic function to check that a file exists and exit if not
 check_file_exists() {
     local file_path="$1"
     if [ ! -f "$file_path" ]; then
@@ -53,6 +56,13 @@ check_file_exists() {
     else
         echo "File $file_path found."
     fi
+}
+
+# List directory content
+show_dir_content() {
+  local directory=$1
+  echo "Listing contents of ${directory}:"
+  ls ${directory}
 }
 
 # Initialize variables
@@ -111,25 +121,31 @@ fi
 # Main script logic
 echo "Input directory: $input_dir"
 echo "Output directory: $output_dir"
+echo "Freesurfer license: $fs_license"
 echo "Apptainer directory: $apptainer_dir"
 echo "Freesurfer version: ${version:-Not specified}"
+echo "Participant label: ${participant_label}"
 echo "More options: ${more_options:-Not specified}"
 
+# Checks and set-up
 check_apptainer_is_installed
 ensure_image_exists "${apptainer_dir}" "${version}"
 
+check_file_exists "${fs_license}"
+
 participant_dir="${input_dir}/sub-${participant_label}"
 participant_T1w="${participant_dir}/anat/sub-${participant_label}_T1w.nii.gz"
-
-check_file_exists "${fs_license}"
+show_dir_content "${input_dir}"
 check_file_exists "${participant_T1w}"
 
+# Launch apptainer
 ${APPTAINER_CMD} run ${APPTAINER_IMG} \
   -B "${fs_license}":/usr/local/freesurfer/.license \
   -B "${input_dir}":/rawdata \
   -B "${output_dir}":/derivatives "${app}" \
   recon-all -all \
-  -subjid sub-${participant_label} \
-  -i /rawdata/sub-${participant_label}/anat/sub-${participant_label}_T1w.nii.gz \
-  -T2 /rawdata/sub-${participant_label}/anat/sub-${participant_label}_FLAIR.nii.gz \
-  -sd /derivatives
+  -subjid "sub-${participant_label}" \
+  -i "/rawdata/sub-${participant_label}/anat/sub-${participant_label}_T1w.nii.gz" \
+  -T2 "/rawdata/sub-${participant_label}/anat/sub-${participant_label}_FLAIR.nii.gz" \
+  -sd "/derivatives" \
+  ${more_options}
