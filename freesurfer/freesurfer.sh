@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Default variables
-DEFAULT_APPTAINER_DIR="${HOME}/apptainer"
+DEFAULT_APPTAINER_DIR="/opt/apptainer"
 DEFAULT_VERSION="7.3.2"  # As of 20250801, version 7.3.2 is the once included in latest fmriprep (25.1.4)
 DEFAULT_FS_LICENSE="/opt/freesurfer/.license"
 
