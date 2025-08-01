@@ -143,8 +143,7 @@ ${APPTAINER_CMD} run \
   -B "${fs_license}":/usr/local/freesurfer/.license \
   -B "${input_dir}":/rawdata \
   -B "${output_dir}":/derivatives "${app}" \
-  ${APPTAINER_IMG} \
-  recon-all -all \
+  ${APPTAINER_IMG} recon-all -all \
   -subjid "sub-${participant_label}" \
   -i "/rawdata/sub-${participant_label}/anat/sub-${participant_label}_T1w.nii.gz" \
   -T2 "/rawdata/sub-${participant_label}/anat/sub-${participant_label}_FLAIR.nii.gz" \
