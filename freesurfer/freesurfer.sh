@@ -4,6 +4,8 @@
 DEFAULT_APPTAINER_DIR="/opt/apptainer"
 DEFAULT_VERSION="7.3.2"  # As of 20250801, version 7.3.2 is the once included in latest fmriprep (25.1.4)
 DEFAULT_FS_LICENSE="/opt/freesurfer/.license"
+DEFAULT_RAWDATA="$HOME/rawdata"
+DEFAULT_DERIVATIVES="$HOME/derivatives"
 
 # Apptainer variables
 APPTAINER_CMD="/usr/bin/apptainer"
@@ -11,7 +13,7 @@ APPTAINER_OPT="--nv --cleanenv"
 
 # Display usage information
 usage() {
-    echo "Usage: $0 [--input input_dir] [--output output_dir] [--fs-license fs_license] [--apptainer-dir apptainer_dir] [--version version] [--participant-label participant_label] [--more more_options]"
+    echo "Usage: $0 [--dataset dataset] [--output-label output_label] [--fs-license fs_license] [--apptainer-dir apptainer_dir] [--version version] [--participant-label participant_label] [--more more_options]"
     exit 1
 }
 
@@ -66,22 +68,22 @@ show_dir_content() {
 }
 
 # Initialize variables
-input_dir=""
-output_dir=""
+dataset=""
 fs_license="${DEFAULT_FS_LICENSE}"
 apptainer_dir="${DEFAULT_APPTAINER_DIR}"
 version="${DEFAULT_VERSION}"
+output_label="freesurfer_${version}"
 more_options=""
 
 # Parse command line options
 while [[ "$#" -gt 0 ]]; do
     case $1 in
-        --input)
-            input_dir=$2
+        --dataset)
+            dataset=$2
             shift
             ;;
-        --output)
-            output_dir=$2
+        --output-label)
+            output_label=$2
             shift
             ;;
         --fs-license)
@@ -113,16 +115,16 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # Check mandatory options
-if [ -z "$input_dir" ] || [ -z "$output_dir" ] || [ -z "$participant_label" ]; then
-    echo "Error: input, output and participant_label values must be specified."
+if [ -z "${dataset}" ] [ -z "${participant_label}" ]; then
+    echo "Error: dataset name and participant label values must be specified."
     usage
 fi
 
 # Main script logic
-echo "Input directory: $input_dir"
-echo "Output directory: $output_dir"
-echo "Freesurfer license: $fs_license"
-echo "Apptainer directory: $apptainer_dir"
+echo "Dataset name: ${dataset}"
+echo "Output label: ${output_label}"
+echo "Freesurfer license: ${fs_license}"
+echo "Apptainer directory: ${apptainer_dir}"
 echo "Freesurfer version: ${version:-Not specified}"
 echo "Participant label: ${participant_label}"
 echo "More options: ${more_options:-Not specified}"
@@ -132,9 +134,13 @@ check_apptainer_is_installed
 ensure_image_exists "${apptainer_dir}" "${version}"
 check_file_exists "${fs_license}"
 
-participant_dir="${input_dir}/sub-${participant_label}"
+dataset_rawdata="${DEFAULT_RAWDATA}/${dataset}-rawdata"
+output_dir="${DEFAULT_DERIVATIVES}/${dataset}-derivatives/${output_label}"
+mkdir -p "${output_dir}"
+
+participant_dir="${dataset_rawdata}/sub-${participant_label}"
 participant_T1w="${participant_dir}/anat/sub-${participant_label}_T1w.nii.gz"
-show_dir_content "${input_dir}"
+show_dir_content "${dataset_rawdata}"
 check_file_exists "${participant_T1w}"
 
 flair_option=""
@@ -148,7 +154,7 @@ echo "Launching apptainer image ${APPTAINER_IMG}"
 
 ${APPTAINER_CMD} run \
   -B "${fs_license}":/usr/local/freesurfer/.license \
-  -B "${input_dir}":/rawdata \
+  -B "${dataset_rawdata}":/rawdata \
   -B "${output_dir}":/derivatives \
   ${APPTAINER_IMG} recon-all -all \
     -subjid "sub-${participant_label}" \
