@@ -137,6 +137,12 @@ participant_T1w="${participant_dir}/anat/sub-${participant_label}_T1w.nii.gz"
 show_dir_content "${input_dir}"
 check_file_exists "${participant_T1w}"
 
+flair_option=""
+participant_flair="${participant_dir}/anat/sub-${participant_label}_FLAIR.nii.gz"
+if [ -f "${participant_flair}" ]; then
+  flair_option="-T2 /rawdata/sub-${participant_label}/anat/sub-${participant_label}_FLAIR.nii.gz"
+fi
+
 # Launch apptainer
 echo "Launching apptainer image ${APPTAINER_IMG}"
 
@@ -147,5 +153,4 @@ ${APPTAINER_CMD} run \
   ${APPTAINER_IMG} recon-all -all \
     -subjid "sub-${participant_label}" \
     -i "/rawdata/sub-${participant_label}/anat/sub-${participant_label}_T1w.nii.gz" \
-    -T2 "/rawdata/sub-${participant_label}/anat/sub-${participant_label}_FLAIR.nii.gz" \
-    -sd "/derivatives"
+    -sd "/derivatives" ${flair_option}
