@@ -44,7 +44,7 @@ ensure_image_exists() {
         echo "File $file_path already exists."
     fi
 
-    export APPTAINER_IMG="${file_path}"
+    APPTAINER_IMG="${file_path}"
 }
 
 # Generic function to check that a file exists and exit if not
@@ -130,7 +130,6 @@ echo "More options: ${more_options:-Not specified}"
 # Checks and set-up
 check_apptainer_is_installed
 ensure_image_exists "${apptainer_dir}" "${version}"
-
 check_file_exists "${fs_license}"
 
 participant_dir="${input_dir}/sub-${participant_label}"
@@ -139,6 +138,7 @@ show_dir_content "${input_dir}"
 check_file_exists "${participant_T1w}"
 
 # Launch apptainer
+echo "Launching apptainer image ${APPTAINER_IMG}"
 ${APPTAINER_CMD} run ${APPTAINER_IMG} \
   -B "${fs_license}":/usr/local/freesurfer/.license \
   -B "${input_dir}":/rawdata \
