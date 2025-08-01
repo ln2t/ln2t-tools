@@ -115,7 +115,7 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # Check mandatory options
-if [ -z "${dataset}" ] [ -z "${participant_label}" ]; then
+if [ -z "${dataset}" ] || [ -z "${participant_label}" ]; then
     echo "Error: dataset name and participant label values must be specified."
     usage
 fi
