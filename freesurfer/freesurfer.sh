@@ -143,6 +143,8 @@ echo "Launching apptainer image ${APPTAINER_IMG}"
 ${APPTAINER_CMD} run \
   ${APPTAINER_IMG} recon-all -all
 
+exit 0
+
 ${APPTAINER_CMD} run \
   -B "${fs_license}":/usr/local/freesurfer/.license \
   -B "${input_dir}":/rawdata \
