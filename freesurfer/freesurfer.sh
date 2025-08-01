@@ -139,6 +139,10 @@ check_file_exists "${participant_T1w}"
 
 # Launch apptainer
 echo "Launching apptainer image ${APPTAINER_IMG}"
+
+${APPTAINER_CMD} run \
+  ${APPTAINER_IMG} recon-all -all
+
 ${APPTAINER_CMD} run \
   -B "${fs_license}":/usr/local/freesurfer/.license \
   -B "${input_dir}":/rawdata \
