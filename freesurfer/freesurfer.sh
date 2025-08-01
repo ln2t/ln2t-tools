@@ -147,5 +147,4 @@ ${APPTAINER_CMD} run \
   -subjid "sub-${participant_label}" \
   -i "/rawdata/sub-${participant_label}/anat/sub-${participant_label}_T1w.nii.gz" \
   -T2 "/rawdata/sub-${participant_label}/anat/sub-${participant_label}_FLAIR.nii.gz" \
-  -sd "/derivatives" \
-  ${more_options}
+  -sd "/derivatives"
