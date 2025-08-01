@@ -141,6 +141,7 @@ check_file_exists "${participant_T1w}"
 echo "Launching apptainer image ${APPTAINER_IMG}"
 
 ${APPTAINER_CMD} run \
+  -B "${fs_license}":/usr/local/freesurfer/.license \
   ${APPTAINER_IMG} recon-all -all -subjid "sub-${participant_label}"
 
 exit 0
