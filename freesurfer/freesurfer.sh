@@ -178,20 +178,9 @@ echo "Participant label: ${participant_label:-Not specified}"
 echo "List missing flag: ${list_missing}"
 echo "More options: ${more_options:-Not specified}"
 
-if [ ${list_missing} = true ]; then
-  echo "Listing missing runs..."
-fi
-
-echo "oups0"
-
 dataset_rawdata="${DEFAULT_RAWDATA}/${dataset}-rawdata"
-
-echo "oups1"
 output_dir="${DEFAULT_DERIVATIVES}/${dataset}-derivatives/${output_label}"
-echo "oups2"
 
-
-echo "Output directory ${output_dir} already exists"
 if [ -f "${output_dir}" ]; then
   echo "Output directory ${output_dir} already exists"
 else
@@ -199,17 +188,12 @@ else
   mkdir -p "${output_dir}"
 fi
 
-echo "oups3"
-
-
 # Show missing runs if required
 if [ ${list_missing} = true ]; then
   echo "Listing missing runs..."
   compare_folders "${dataset_rawdata}" "${output_dir}"
   exit 0
 fi
-
-echo "oups4"
 
 participant_dir="${dataset_rawdata}/sub-${participant_label}"
 participant_T1w="${participant_dir}/anat/sub-${participant_label}_T1w.nii.gz"
