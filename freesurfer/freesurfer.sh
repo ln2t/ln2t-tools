@@ -183,6 +183,7 @@ mkdir -p "${output_dir}"
 
 # Show missing runs if required
 if ${list_missing}; then
+  echo "Listing missing runs..."
   compare_folders "${dataset_rawdata}" "${output_dir}"
   exit 0
 fi
