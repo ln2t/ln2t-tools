@@ -175,6 +175,7 @@ echo "Freesurfer license: ${fs_license}"
 echo "Apptainer directory: ${apptainer_dir}"
 echo "Freesurfer version: ${version:-Not specified}"
 echo "Participant label: ${participant_label}"
+echo "List missing flag: ${list_missing}"
 echo "More options: ${more_options:-Not specified}"
 
 dataset_rawdata="${DEFAULT_RAWDATA}/${dataset}-rawdata"
