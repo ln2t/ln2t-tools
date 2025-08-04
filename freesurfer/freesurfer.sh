@@ -180,15 +180,17 @@ echo "More options: ${more_options:-Not specified}"
 
 if [ ${list_missing} = true ]; then
   echo "Listing missing runs..."
-  exit 0
 fi
 
-echo "oups"
-exit 0
+echo "oups1"
 
 dataset_rawdata="${DEFAULT_RAWDATA}/${dataset}-rawdata"
 output_dir="${DEFAULT_DERIVATIVES}/${dataset}-derivatives/${output_label}"
 mkdir -p "${output_dir}"
+
+echo "oups"
+exit 0
+
 
 # Show missing runs if required
 if [ ${list_missing} = true ]; then
