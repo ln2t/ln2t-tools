@@ -231,7 +231,7 @@ if [ -d "${freesurfer_dir}/sub-${participant_label}" ]; then
   echo "Found pre-computed Freesurfer outputs in ${freesurfer_dir}, re-using them."
   fs_option="--fs-subjects-dir /derivatives/freesurfer_${DEFAULT_FREESURFER_VERSION}"
 fi
-
+echo 'test'
 ${APPTAINER_CMD} run \
   -B "${fs_license}":/usr/local/freesurfer/.license \
   -B "${dataset_rawdata}":/rawdata \
