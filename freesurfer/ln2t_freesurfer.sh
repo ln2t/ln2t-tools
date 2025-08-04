@@ -208,6 +208,7 @@ check_file_exists "${fs_license}"
 flair_option=""
 participant_flair="${participant_dir}/anat/sub-${participant_label}_FLAIR.nii.gz"
 if [ -f "${participant_flair}" ]; then
+  echo "WARNING: untested feature using T2 flag in apptainer call!"
   flair_option="-T2 /rawdata/sub-${participant_label}/anat/sub-${participant_label}_FLAIR.nii.gz"
 fi
 
