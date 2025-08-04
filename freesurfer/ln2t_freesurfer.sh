@@ -201,7 +201,8 @@ if [ ${list_datasets} = true ]; then
 fi
 
 dataset_rawdata="${DEFAULT_RAWDATA}/${dataset}-rawdata"
-output_dir="${DEFAULT_DERIVATIVES}/${dataset}-derivatives/${output_label}"
+dataset_derivatives="${DEFAULT_DERIVATIVES}/${dataset}-derivatives"
+output_dir="${dataset_derivatives}/${output_label}"
 
 if [ -f "${output_dir}" ]; then
   echo "Output directory ${output_dir} already exists"
@@ -219,15 +220,16 @@ if [ ${list_missing} = true ]; then
   exit 0
 fi
 
-participant_dir="${dataset_rawdata}/sub-${participant_label}"
-participant_T1w="${participant_dir}/anat/sub-${participant_label}_T1w.nii.gz"
-show_dir_content "${dataset_rawdata}"
-check_file_exists "${participant_T1w}"
-
 # Checks and set-up
+show_dir_content "${dataset_rawdata}"
 check_apptainer_is_installed
 ensure_image_exists "${apptainer_dir}" "${version}"
 check_file_exists "${fs_license}"
+
+# App specify steps
+participant_dir="${dataset_rawdata}/sub-${participant_label}"
+participant_T1w="${participant_dir}/anat/sub-${participant_label}_T1w.nii.gz"
+check_file_exists "${participant_T1w}"
 
 flair_option=""
 participant_flair="${participant_dir}/anat/sub-${participant_label}_FLAIR.nii.gz"
@@ -242,8 +244,8 @@ echo "Launching apptainer image ${APPTAINER_IMG}"
 ${APPTAINER_CMD} run \
   -B "${fs_license}":/usr/local/freesurfer/.license \
   -B "${dataset_rawdata}":/rawdata \
-  -B "${output_dir}":/derivatives \
+  -B "${dataset_derivatives}":/derivatives \
   ${APPTAINER_IMG} recon-all -all \
     -subjid "sub-${participant_label}" \
     -i "/rawdata/sub-${participant_label}/anat/sub-${participant_label}_T1w.nii.gz" \
-    -sd "/derivatives" ${flair_option}
+    -sd "/derivatives/${output_label}" ${flair_option}
