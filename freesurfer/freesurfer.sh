@@ -186,7 +186,11 @@ echo "oups1"
 
 dataset_rawdata="${DEFAULT_RAWDATA}/${dataset}-rawdata"
 output_dir="${DEFAULT_DERIVATIVES}/${dataset}-derivatives/${output_label}"
-mkdir -p "${output_dir}"
+
+if [ ! -d "${output_dir}" ]; then
+  echo "Creating output directory ${output_dir}"
+  mkdir -p "${output_dir}"
+fi
 
 echo "oups"
 exit 0
