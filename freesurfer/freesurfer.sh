@@ -195,7 +195,7 @@ if [ ! -d "${output_dir}" ]; then
   mkdir -p "${output_dir}"
 fi
 
-exit 0
+echo "oups3"
 
 
 # Show missing runs if required
@@ -204,6 +204,8 @@ if [ ${list_missing} = true ]; then
   compare_folders "${dataset_rawdata}" "${output_dir}"
   exit 0
 fi
+
+echo "oups4"
 
 participant_dir="${dataset_rawdata}/sub-${participant_label}"
 participant_T1w="${participant_dir}/anat/sub-${participant_label}_T1w.nii.gz"
