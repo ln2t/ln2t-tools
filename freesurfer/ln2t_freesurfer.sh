@@ -87,8 +87,7 @@ compare_folders() {
     fi
 
     if [ ! -d "$output_dir" ]; then
-        echo "Error: $output_dir does not exist."
-        return 1
+        mkdir -p "$output_dir"
     fi
 
     # Find sub-folders in rawdata that start with "sub-"
