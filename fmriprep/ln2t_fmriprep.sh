@@ -2,7 +2,8 @@
 
 # Default variables
 DEFAULT_APPTAINER_DIR="/opt/apptainer"
-DEFAULT_VERSION="7.3.2"  # As of 20250801, version 7.3.2 is the one included in latest fmriprep (25.1.4)
+DEFAULT_VERSION="25.1.4"
+DEFAULT_FREESURFER_VERSION="7.3.2"  # This is the version used in fMRIPrep 25.1.4 and we must have this to re-use pre-computed stuff
 DEFAULT_FS_LICENSE="/opt/freesurfer/.license"
 DEFAULT_RAWDATA="$HOME/rawdata"
 DEFAULT_DERIVATIVES="$HOME/derivatives"
@@ -37,8 +38,8 @@ check_apptainer_is_installed() {
 ensure_image_exists() {
     local apptainer_dir="$1"
     local version="$2"
-    local file_path="${apptainer_dir}/freesurfer.freesurfer.${version}.sif"
-    local create_command="${APPTAINER_CMD} build ${file_path} docker://freesurfer/freesurfer:${version}"
+    local file_path="${apptainer_dir}/nipreps.fmriprep.${version}.sif"
+    local create_command="${APPTAINER_CMD} build ${file_path} docker://nipreps/fmriprep:${version}"
 
     if [ ! -f "$file_path" ]; then
         echo "File $file_path does not exist. Creating it..."
@@ -114,7 +115,7 @@ dataset=""
 fs_license="${DEFAULT_FS_LICENSE}"
 apptainer_dir="${DEFAULT_APPTAINER_DIR}"
 version="${DEFAULT_VERSION}"
-output_label="freesurfer_${version}"
+output_label="fmriprep_${version}"
 more_options=""
 list_missing=false
 
@@ -186,7 +187,7 @@ echo "Dataset name: ${dataset:-Not specified}"
 echo "Output label: ${output_label}"
 echo "Freesurfer license: ${fs_license}"
 echo "Apptainer directory: ${apptainer_dir}"
-echo "Freesurfer version: ${version:-Not specified}"
+echo "fMRIPrep version: ${version:-Not specified}"
 echo "Participant label: ${participant_label:-Not specified}"
 echo "List missing flag: ${list_missing}"
 echo "More options: ${more_options:-Not specified}"
@@ -202,14 +203,8 @@ if [ ${list_datasets} = true ]; then
 fi
 
 dataset_rawdata="${DEFAULT_RAWDATA}/${dataset}-rawdata"
-output_dir="${DEFAULT_DERIVATIVES}/${dataset}-derivatives/${output_label}"
-
-if [ -f "${output_dir}" ]; then
-  echo "Output directory ${output_dir} already exists"
-else
-  echo "Creating output directory ${output_dir}"
-  mkdir -p "${output_dir}"
-fi
+dataset_derivatives="${DEFAULT_DERIVATIVES}/${dataset}-derivatives"
+output_dir="${dataset_derivatives}/${output_label}"
 
 # Show missing runs if required
 if [ ${list_missing} = true ]; then
@@ -220,31 +215,28 @@ if [ ${list_missing} = true ]; then
   exit 0
 fi
 
-participant_dir="${dataset_rawdata}/sub-${participant_label}"
-participant_T1w="${participant_dir}/anat/sub-${participant_label}_T1w.nii.gz"
 show_dir_content "${dataset_rawdata}"
-check_file_exists "${participant_T1w}"
 
 # Checks and set-up
 check_apptainer_is_installed
 ensure_image_exists "${apptainer_dir}" "${version}"
 check_file_exists "${fs_license}"
 
-flair_option=""
-participant_flair="${participant_dir}/anat/sub-${participant_label}_FLAIR.nii.gz"
-if [ -f "${participant_flair}" ]; then
-  echo "WARNING: untested feature using T2 flag in apptainer call!"
-  flair_option="-T2 /rawdata/sub-${participant_label}/anat/sub-${participant_label}_FLAIR.nii.gz"
-fi
-
 # Launch apptainer
 echo "Launching apptainer image ${APPTAINER_IMG}"
+
+fs_option=""
+freesurfer_dir=${dataset_derivatives}/freesurfer_${DEFAULT_FREESURFER_VERSION}
+if [ -d "${freesurfer_dir}/sub-${participant_label}" ]; then
+  echo "Found pre-computed Freesurfer outputs in ${freesurfer_dir}, re-using them."
+  fs_option="--fs-subjects-dir /derivatives/freesurfer_${DEFAULT_FREESURFER_VERSION}"
+fi
 
 ${APPTAINER_CMD} run \
   -B "${fs_license}":/usr/local/freesurfer/.license \
   -B "${dataset_rawdata}":/rawdata \
-  -B "${output_dir}":/derivatives \
-  ${APPTAINER_IMG} recon-all -all \
-    -subjid "sub-${participant_label}" \
-    -i "/rawdata/sub-${participant_label}/anat/sub-${participant_label}_T1w.nii.gz" \
-    -sd "/derivatives" ${flair_option}
+  -B "${dataset_derivatives}":/derivatives \
+  ${APPTAINER_IMG}  \
+    /rawdata \
+    /derivatives/${output_label} \
+    --participant_label "${participant_label}" ${fs_option}
