@@ -1,5 +1,5 @@
 #!/bin/bash
-
+#
 # Default variables
 DEFAULT_APPTAINER_DIR="/opt/apptainer"
 DEFAULT_FS_VERSION="7.3.2"
