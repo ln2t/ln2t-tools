@@ -13,7 +13,8 @@ APPTAINER_OPT="--nv --cleanenv"
 
 # Display usage information
 usage() {
-    echo "Usage: $0 [--dataset dataset] \
+    echo "Usage: $0 [--list-datasets] \
+                    [--dataset dataset] \
                     [--output-label output_label] \
                     [--fs-license fs_license] \
                     [--apptainer-dir apptainer_dir] \
@@ -108,6 +109,7 @@ compare_folders() {
 }
 
 # Initialize variables
+list_datasets=false
 dataset=""
 fs_license="${DEFAULT_FS_LICENSE}"
 apptainer_dir="${DEFAULT_APPTAINER_DIR}"
@@ -119,6 +121,10 @@ list_missing=false
 # Parse command line options
 while [[ "$#" -gt 0 ]]; do
     case $1 in
+        --list-datasets)
+            list_datasets=true
+            shift
+            ;;
         --dataset)
             dataset=$2
             shift
@@ -140,7 +146,12 @@ while [[ "$#" -gt 0 ]]; do
             shift
             ;;
         --participant-label)
-            participant_label=$2
+            # Remove the 'sub-' if it was provided in the participant_label argument
+            if [[ "$2" == sub-* ]]; then
+              participant_label="${2#sub-}"
+            else
+              participant_label=$2
+            fi
             shift
             ;;
         --list-missing)
@@ -159,17 +170,19 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # Check mandatory options
-if [ -z "${dataset}" ] ; then
+if [ "${list_datasets}" = false ] && [ -z "${dataset}" ] ; then
     echo "Error: dataset name must be specified."
     usage
 fi
-if [ "${list_missing}" = false ] && [ -z "${participant_label}" ]; then
+
+if [ "${list_datasets}" = false ] && [ "${list_missing}" = false ] && [ -z "${participant_label}" ]; then
     echo "Error: participant label must be specified."
     usage
 fi
 
 # Main script logic
-echo "Dataset name: ${dataset}"
+echo "List datasets flag: ${list_datasets}"
+echo "Dataset name: ${dataset:-Not specified}"
 echo "Output label: ${output_label}"
 echo "Freesurfer license: ${fs_license}"
 echo "Apptainer directory: ${apptainer_dir}"
@@ -177,6 +190,15 @@ echo "Freesurfer version: ${version:-Not specified}"
 echo "Participant label: ${participant_label:-Not specified}"
 echo "List missing flag: ${list_missing}"
 echo "More options: ${more_options:-Not specified}"
+
+if [ ${list_datasets} = true ]; then
+  echo "Listing available datasets..."
+  echo "================== AVAILABLE DATASETS =================="
+  ls "${DEFAULT_RAWDATA}" | grep rawdata | sed 's/-rawdata//g'
+  echo "========================================================"
+  echo "Add your dataset name to the following line to list missing subjects in the outputs"
+  echo "$0 --list-missing --dataset"
+fi
 
 dataset_rawdata="${DEFAULT_RAWDATA}/${dataset}-rawdata"
 output_dir="${DEFAULT_DERIVATIVES}/${dataset}-derivatives/${output_label}"
