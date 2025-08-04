@@ -232,6 +232,8 @@ if [ -d "${freesurfer_dir}/sub-${participant_label}" ]; then
   fs_option="--fs-subjects-dir /derivatives/freesurfer_${DEFAULT_FREESURFER_VERSION}"
 fi
 
+exit 0
+
 ${APPTAINER_CMD} run \
   -B "${fs_license}":/usr/local/freesurfer/.license \
   -B "${dataset_rawdata}":/rawdata \
