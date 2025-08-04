@@ -193,7 +193,7 @@ if [ ${list_missing} = true ]; then
   echo "Listing missing runs..."
   compare_folders "${dataset_rawdata}" "${output_dir}"
   echo "Add your participant label (without the sub-) to the following line to run the tool:"
-  echo "./$0 --dataset ${dataset} --participant_label "
+  echo "$0 --dataset ${dataset} --participant_label "
   exit 0
 fi
 
