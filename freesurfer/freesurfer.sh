@@ -13,7 +13,14 @@ APPTAINER_OPT="--nv --cleanenv"
 
 # Display usage information
 usage() {
-    echo "Usage: $0 [--dataset dataset] [--output-label output_label] [--fs-license fs_license] [--apptainer-dir apptainer_dir] [--version version] [--participant-label participant_label] [--more more_options]"
+    echo "Usage: $0 [--dataset dataset] \
+                    [--output-label output_label] \
+                    [--fs-license fs_license] \
+                    [--apptainer-dir apptainer_dir] \
+                    [--version version] \
+                    [--participant-label participant_label] \
+                    [--list-missing] \
+                    [--more more_options]"
     exit 1
 }
 
@@ -67,6 +74,39 @@ show_dir_content() {
   ls ${directory}
 }
 
+# Function to compare folders
+compare_folders() {
+    local rawdata_dir="$1"
+    local output_dir="$2"
+
+    # Check if the directories exist
+    if [ ! -d "$rawdata_dir" ]; then
+        echo "Error: $rawdata_dir does not exist."
+        return 1
+    fi
+
+    if [ ! -d "$output_dir" ]; then
+        echo "Error: $output_dir does not exist."
+        return 1
+    fi
+
+    # Find sub-folders in rawdata that start with "sub-"
+    local raw_sub_folders
+    raw_sub_folders=($(find "$rawdata_dir" -maxdepth 1 -type d -name "sub-*" -printf "%f\n"))
+
+    # Find sub-folders in output that start with "sub-"
+    local output_sub_folders
+    output_sub_folders=($(find "$output_dir" -maxdepth 1 -type d -name "sub-*" -printf "%f\n"))
+
+    # Compare and print folders in rawdata that are not in output
+    echo "Folders in $rawdata_dir that are not in $output_dir:"
+    for folder in "${raw_sub_folders[@]}"; do
+        if [[ ! " ${output_sub_folders[@]} " =~ " $folder " ]]; then
+            echo "$folder"
+        fi
+    done
+}
+
 # Initialize variables
 dataset=""
 fs_license="${DEFAULT_FS_LICENSE}"
@@ -74,6 +114,7 @@ apptainer_dir="${DEFAULT_APPTAINER_DIR}"
 version="${DEFAULT_VERSION}"
 output_label="freesurfer_${version}"
 more_options=""
+list_missing=false
 
 # Parse command line options
 while [[ "$#" -gt 0 ]]; do
@@ -102,6 +143,9 @@ while [[ "$#" -gt 0 ]]; do
             participant_label=$2
             shift
             ;;
+        --list-missing)
+            list_missing=true
+            ;;
         --more)
             more_options=$2
             shift
@@ -129,19 +173,25 @@ echo "Freesurfer version: ${version:-Not specified}"
 echo "Participant label: ${participant_label}"
 echo "More options: ${more_options:-Not specified}"
 
-# Checks and set-up
-check_apptainer_is_installed
-ensure_image_exists "${apptainer_dir}" "${version}"
-check_file_exists "${fs_license}"
-
 dataset_rawdata="${DEFAULT_RAWDATA}/${dataset}-rawdata"
 output_dir="${DEFAULT_DERIVATIVES}/${dataset}-derivatives/${output_label}"
 mkdir -p "${output_dir}"
+
+# Show missing runs if required
+if ${list_missing}; then
+  compare_folders "${dataset_rawdata}" "${output_dir}"
+  exit 0
+fi
 
 participant_dir="${dataset_rawdata}/sub-${participant_label}"
 participant_T1w="${participant_dir}/anat/sub-${participant_label}_T1w.nii.gz"
 show_dir_content "${dataset_rawdata}"
 check_file_exists "${participant_T1w}"
+
+# Checks and set-up
+check_apptainer_is_installed
+ensure_image_exists "${apptainer_dir}" "${version}"
+check_file_exists "${fs_license}"
 
 flair_option=""
 participant_flair="${participant_dir}/anat/sub-${participant_label}_FLAIR.nii.gz"
