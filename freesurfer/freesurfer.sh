@@ -190,7 +190,9 @@ echo "oups1"
 output_dir="${DEFAULT_DERIVATIVES}/${dataset}-derivatives/${output_label}"
 echo "oups2"
 
-if [ ! -d "${output_dir}" ]; then
+if [ -d "${output_dir}" ]; then
+  echo "Output directory ${output_dir} already exists"
+else
   echo "Creating output directory ${output_dir}"
   mkdir -p "${output_dir}"
 fi
