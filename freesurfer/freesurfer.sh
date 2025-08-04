@@ -174,9 +174,17 @@ echo "Output label: ${output_label}"
 echo "Freesurfer license: ${fs_license}"
 echo "Apptainer directory: ${apptainer_dir}"
 echo "Freesurfer version: ${version:-Not specified}"
-echo "Participant label: ${participant_label}"
+echo "Participant label: ${participant_label:-Not specified}"
 echo "List missing flag: ${list_missing}"
 echo "More options: ${more_options:-Not specified}"
+
+if [ ${list_missing} = true ]; then
+  echo "Listing missing runs..."
+  exit 0
+fi
+
+echo "oups"
+exit 0
 
 dataset_rawdata="${DEFAULT_RAWDATA}/${dataset}-rawdata"
 output_dir="${DEFAULT_DERIVATIVES}/${dataset}-derivatives/${output_label}"
