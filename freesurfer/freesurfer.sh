@@ -163,7 +163,7 @@ if [ -z "${dataset}" ] ; then
     echo "Error: dataset name must be specified."
     usage
 fi
-if ! "${list_missing}" && [ -z "${participant_label}" ]; then
+if [ "${list_missing}" = false ] && [ -z "${participant_label}" ]; then
     echo "Error: participant label must be specified."
     usage
 fi
@@ -183,7 +183,7 @@ output_dir="${DEFAULT_DERIVATIVES}/${dataset}-derivatives/${output_label}"
 mkdir -p "${output_dir}"
 
 # Show missing runs if required
-if ${list_missing}; then
+if [ ${list_missing} = true ]; then
   echo "Listing missing runs..."
   compare_folders "${dataset_rawdata}" "${output_dir}"
   exit 0
