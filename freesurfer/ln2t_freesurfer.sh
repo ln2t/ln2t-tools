@@ -198,6 +198,7 @@ if [ ${list_datasets} = true ]; then
   echo "========================================================"
   echo "Add your dataset name to the following line to list missing subjects in the outputs"
   echo "$0 --list-missing --dataset"
+  exit 0
 fi
 
 dataset_rawdata="${DEFAULT_RAWDATA}/${dataset}-rawdata"
