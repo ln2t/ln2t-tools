@@ -182,17 +182,19 @@ if [ ${list_missing} = true ]; then
   echo "Listing missing runs..."
 fi
 
-echo "oups1"
+echo "oups0"
 
 dataset_rawdata="${DEFAULT_RAWDATA}/${dataset}-rawdata"
+
+echo "oups1"
 output_dir="${DEFAULT_DERIVATIVES}/${dataset}-derivatives/${output_label}"
+echo "oups2"
 
 if [ ! -d "${output_dir}" ]; then
   echo "Creating output directory ${output_dir}"
   mkdir -p "${output_dir}"
 fi
 
-echo "oups"
 exit 0
 
 
