@@ -212,7 +212,7 @@ if [ -z "${tool}" ]; then
     usage
 fi
 
-if [ "${tool}" = "help"];
+if [ "${tool}" = "help"]; then
   usage
 fi
 
