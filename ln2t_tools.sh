@@ -140,22 +140,18 @@ while [[ "$#" -gt 0 ]]; do
         --output-label)
             shift
             output_label=$1
-            shift
             ;;
         --fs-license)
             shift
             fs_license=$1
-            shift
             ;;
         --apptainer-dir)
             shift
             apptainer_dir=$1
-            shift
             ;;
         --version)
             shift
             version=$1
-            shift
             ;;
         --participant-label)
             shift
@@ -165,7 +161,6 @@ while [[ "$#" -gt 0 ]]; do
             else
               participant_label=$1
             fi
-            shift
             ;;
         --participant-list)
             shift
@@ -181,13 +176,12 @@ while [[ "$#" -gt 0 ]]; do
             done
             ;;
         --list-missing)
-            list_missing=true
             shift
+            list_missing=true
             ;;
         --more)
             shift
             more_options=$1
-            shift
             ;;
         *)
             echo "Unknown parameter passed: $1"
@@ -212,10 +206,10 @@ if [ "${list_datasets}" = false ] && [ -z "${dataset}" ]; then
     usage
 fi
 
-if [ "${list_datasets}" = false ] && [ "${list_missing}" = false ] && [ -z "${participant_label}" ]; then
-    echo "Error: participant label must be specified."
-    usage
-fi
+#if [ "${list_datasets}" = false ] && [ "${list_missing}" = false ] && [ -z "${participant_label}" ]; then
+#    echo "Error: participant label must be specified."
+#    usage
+#fi
 
 # Set default version and output label based on tool
 if [ "$tool" == "freesurfer" ]; then
