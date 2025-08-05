@@ -67,10 +67,9 @@ ensure_image_exists() {
 check_file_exists() {
     local file_path="$1"
     if [ ! -f "$file_path" ]; then
-      echo "File $file_path does not exist. Aborting..."
-      exit 1
+      echo "File $file_path does not exist."
     else
-        echo "File $file_path found."
+      echo "File $file_path found."
     fi
 }
 
@@ -279,30 +278,30 @@ for participant_label in "${participant_list[@]}"; do
     if [ "$tool" == "freesurfer" ]; then
         participant_dir="${dataset_rawdata}/sub-${participant_label}"
         participant_T1w="${participant_dir}/anat/sub-${participant_label}_T1w.nii.gz"
-        check_file_exists "${participant_T1w}"
-
-        if [ ! -d "${dataset_derivatives}/${output_label}/sub-${participant_label}" ]; then
-          flair_option=""
-          participant_flair="${participant_dir}/anat/sub-${participant_label}_FLAIR.nii.gz"
-          if [ -f "${participant_flair}" ]; then
-            echo "WARNING: untested feature using T2 flag in apptainer call!"
-            flair_option="-T2 /rawdata/sub-${participant_label}/anat/sub-${participant_label}_FLAIR.nii.gz"
+        if [ -f "${participant_T1w}" ]; then
+          if [ ! -d "${dataset_derivatives}/${output_label}/sub-${participant_label}" ]; then
+            flair_option=""
+            participant_flair="${participant_dir}/anat/sub-${participant_label}_FLAIR.nii.gz"
+            if [ -f "${participant_flair}" ]; then
+              echo "WARNING: untested feature using T2 flag in apptainer call!"
+              flair_option="-T2 /rawdata/sub-${participant_label}/anat/sub-${participant_label}_FLAIR.nii.gz"
+            fi
+            # Launch apptainer for freesurfer
+            echo "Launching apptainer image ${APPTAINER_IMG}"
+            ${APPTAINER_CMD} run \
+              -B "${fs_license}":/usr/local/freesurfer/.license \
+              -B "${dataset_rawdata}":/rawdata \
+              -B "${dataset_derivatives}":/derivatives \
+              ${APPTAINER_IMG} recon-all -all \
+                -subjid "sub-${participant_label}" \
+                -i "/rawdata/sub-${participant_label}/anat/sub-${participant_label}_T1w.nii.gz" \
+                -sd "/derivatives/${output_label}" ${flair_option}
+          else
+            echo "Output subject directory (${dataset_derivatives}/${output_label}/sub-${participant_label}) already exists, skipping subject "
           fi
-          # Launch apptainer for freesurfer
-          echo "Launching apptainer image ${APPTAINER_IMG}"
-          ${APPTAINER_CMD} run \
-            -B "${fs_license}":/usr/local/freesurfer/.license \
-            -B "${dataset_rawdata}":/rawdata \
-            -B "${dataset_derivatives}":/derivatives \
-            ${APPTAINER_IMG} recon-all -all \
-              -subjid "sub-${participant_label}" \
-              -i "/rawdata/sub-${participant_label}/anat/sub-${participant_label}_T1w.nii.gz" \
-              -sd "/derivatives/${output_label}" ${flair_option}
         else
-          echo "Output subject directory (${dataset_derivatives}/${output_label}/sub-${participant_label}) already exists, skipping subject "
+          echo "File ${participant_T1w} not found, skipping participant"
         fi
-
-
     elif [ "$tool" == "fmriprep" ]; then
         fs_option=""
         freesurfer_dir=${dataset_derivatives}/freesurfer_${DEFAULT_FS_VERSION}
