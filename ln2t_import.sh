@@ -174,7 +174,10 @@ for participant in "${participant_list[@]}"; do
       echo "Running for participant ${participant}"
       check_dir_exists ${dicom}
       echo "Compressing ..."
-      tar czf "${dicom}.tar.gz" "${dicom}"
+      WORKDIR="${PWD}"
+      cd "${DICOM_DIR}"
+      tar czf "${DATASET_INITIALS}${participant}.tar.gz" "${DATASET_INITIALS}${participant}"
+      cd "${WORKDIR}"
       echo "Converting to BIDS ..."
       ${DCM2BIDS_CMD} -o "${RAWDATA_DIR}" -p "${participant}" -d "${dicom}" -c "${DCM2BIDS_CONFIG}"
     else
