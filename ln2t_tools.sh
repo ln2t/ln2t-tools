@@ -136,7 +136,6 @@ while [[ "$#" -gt 0 ]]; do
         --dataset)
             shift
             dataset=$1
-            shift
             ;;
         --output-label)
             shift
@@ -212,8 +211,6 @@ if [ "${list_datasets}" = false ] && [ -z "${dataset}" ]; then
     echo "Error: dataset name must be specified."
     usage
 fi
-
-echo "${list_missing}"
 
 if [ "${list_datasets}" = false ] && [ "${list_missing}" = false ] && [ -z "${participant_label}" ]; then
     echo "Error: participant label must be specified."
