@@ -24,7 +24,7 @@ usage() {
                     [--list-missing] \
                     [--more more_options]"
     echo "Available tools: freesurfer, fmriprep."
-    echo "Type \'$0 help\' for help"
+    echo "Type '$0 help' for help"
     exit 1
 }
 
@@ -212,7 +212,7 @@ if [ -z "${tool}" ]; then
     usage
 fi
 
-if [ "${tool}" = "help"]; then
+if [ "${tool}" = "help" ]; then
   usage
 fi
 
