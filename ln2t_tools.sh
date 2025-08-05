@@ -213,6 +213,8 @@ if [ "${list_datasets}" = false ] && [ -z "${dataset}" ]; then
     usage
 fi
 
+echo "${list_missing}"
+
 if [ "${list_datasets}" = false ] && [ "${list_missing}" = false ] && [ -z "${participant_label}" ]; then
     echo "Error: participant label must be specified."
     usage
