@@ -10,7 +10,7 @@ DEFAULT_DERIVATIVES="$HOME/derivatives"
 
 # Apptainer variables
 APPTAINER_CMD="/usr/bin/apptainer"
-APPTAINER_OPT="--nv --cleanenv"
+APPTAINER_OPT="--nv --cleanenv --fuse-mount-timeout 300"
 
 # Display usage information
 usage() {
