@@ -227,6 +227,7 @@ fi
 echo "Tool: ${tool}"
 echo "List datasets flag: ${list_datasets}"
 echo "Dataset name: ${dataset:-Not specified}"
+echo "Participant list: ${participant_list[@]:-Not specified}"
 echo "Output label: ${output_label}"
 echo "Freesurfer license: ${fs_license}"
 echo "Apptainer directory: ${apptainer_dir}"
