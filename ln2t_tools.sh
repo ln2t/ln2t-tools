@@ -298,5 +298,6 @@ elif [ "$tool" == "fmriprep" ]; then
         /rawdata \
         /derivatives/${output_label} \
         participant \
+        --fs-license-file /usr/local/freesurfer/.license \
         --participant_label "${participant_label}" ${fs_option}
 fi
