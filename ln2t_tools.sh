@@ -24,7 +24,7 @@ usage() {
                     [--list-missing] \
                     [--more more_options]"
     echo "Available tools: freesurfer, fmriprep."
-    echo "Type '$0 help' for help"
+    echo "Type \'$0 help\' for help"
     exit 1
 }
 
