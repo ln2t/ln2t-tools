@@ -22,9 +22,9 @@ usage() {
                     [--version version] \
                     [--participant-label participant_label] \
                     [--list-missing] \
-                    [--more more_options] \
-                    [--help]"
-    echo "Available tools: freesurfer, fmriprep"
+                    [--more more_options]"
+    echo "Available tools: freesurfer, fmriprep."
+    echo "Type '$0 help' for help"
     exit 1
 }
 
@@ -198,11 +198,6 @@ while [[ "$#" -gt 0 ]]; do
             more_options=$1
             shift
             ;;
-        --help)
-            usage
-            echo "coucou"
-            shift
-            ;;
         *)
             echo "Unknown parameter passed: $1"
             usage
@@ -215,6 +210,10 @@ done
 if [ -z "${tool}" ]; then
     echo "Error: tool must be specified."
     usage
+fi
+
+if [ "${tool}" = "help"];
+  usage
 fi
 
 if [ "${list_datasets}" = false ] && [ -z "${dataset}" ]; then
