@@ -160,7 +160,7 @@ mkdir -p "${RAWDATA_DIR}"
 DATASET_INITIALS=$(extract_initials ${dataset})
 echo "Extracted dataset initials: ${DATASET_INITIALS}"
 
-if [ "${list_uncompressed_dicom}" ]; then
+if [ "${list_uncompressed_dicom}" = true ]; then
   echo "Listing dicom directories in ${DICOM_DIR}"
   list_dir_only "${DICOM_DIR}"
   exit 0
