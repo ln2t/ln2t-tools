@@ -272,51 +272,58 @@ check_apptainer_is_installed
 ensure_image_exists "${apptainer_dir}" "${tool}" "${version}"
 check_file_exists "${fs_license}"
 
-# Tool-specific steps
-if [ "$tool" == "freesurfer" ]; then
-    participant_dir="${dataset_rawdata}/sub-${participant_label}"
-    participant_T1w="${participant_dir}/anat/sub-${participant_label}_T1w.nii.gz"
-    check_file_exists "${participant_T1w}"
+# Loop over participants
+for participant_label in "${participant_list[@]}"; do
+  if [ ! -z "${participant_label}" ]; then
+    # Tool-specific steps
+    if [ "$tool" == "freesurfer" ]; then
+        participant_dir="${dataset_rawdata}/sub-${participant_label}"
+        participant_T1w="${participant_dir}/anat/sub-${participant_label}_T1w.nii.gz"
+        check_file_exists "${participant_T1w}"
 
-    if [ ! -d "${dataset_derivatives}/${output_label}/sub-${participant_label}" ]; then
-      flair_option=""
-      participant_flair="${participant_dir}/anat/sub-${participant_label}_FLAIR.nii.gz"
-      if [ -f "${participant_flair}" ]; then
-        echo "WARNING: untested feature using T2 flag in apptainer call!"
-        flair_option="-T2 /rawdata/sub-${participant_label}/anat/sub-${participant_label}_FLAIR.nii.gz"
-      fi
-      # Launch apptainer for freesurfer
-      echo "Launching apptainer image ${APPTAINER_IMG}"
-      ${APPTAINER_CMD} run \
-        -B "${fs_license}":/usr/local/freesurfer/.license \
-        -B "${dataset_rawdata}":/rawdata \
-        -B "${dataset_derivatives}":/derivatives \
-        ${APPTAINER_IMG} recon-all -all \
-          -subjid "sub-${participant_label}" \
-          -i "/rawdata/sub-${participant_label}/anat/sub-${participant_label}_T1w.nii.gz" \
-          -sd "/derivatives/${output_label}" ${flair_option}
-    else
-      echo "Output subject directory (${dataset_derivatives}/${output_label}/sub-${participant_label}) already exists, skipping subject "
+        if [ ! -d "${dataset_derivatives}/${output_label}/sub-${participant_label}" ]; then
+          flair_option=""
+          participant_flair="${participant_dir}/anat/sub-${participant_label}_FLAIR.nii.gz"
+          if [ -f "${participant_flair}" ]; then
+            echo "WARNING: untested feature using T2 flag in apptainer call!"
+            flair_option="-T2 /rawdata/sub-${participant_label}/anat/sub-${participant_label}_FLAIR.nii.gz"
+          fi
+          # Launch apptainer for freesurfer
+          echo "Launching apptainer image ${APPTAINER_IMG}"
+          ${APPTAINER_CMD} run \
+            -B "${fs_license}":/usr/local/freesurfer/.license \
+            -B "${dataset_rawdata}":/rawdata \
+            -B "${dataset_derivatives}":/derivatives \
+            ${APPTAINER_IMG} recon-all -all \
+              -subjid "sub-${participant_label}" \
+              -i "/rawdata/sub-${participant_label}/anat/sub-${participant_label}_T1w.nii.gz" \
+              -sd "/derivatives/${output_label}" ${flair_option}
+        else
+          echo "Output subject directory (${dataset_derivatives}/${output_label}/sub-${participant_label}) already exists, skipping subject "
+        fi
+
+
+    elif [ "$tool" == "fmriprep" ]; then
+        fs_option=""
+        freesurfer_dir=${dataset_derivatives}/freesurfer_${DEFAULT_FS_VERSION}
+        if [ -d "${freesurfer_dir}/sub-${participant_label}" ]; then
+          echo "Found pre-computed Freesurfer outputs in ${freesurfer_dir}, re-using them."
+          fs_option="--fs-subjects-dir /derivatives/freesurfer_${DEFAULT_FS_VERSION}"
+        fi
+        # Launch apptainer for fmriprep
+        echo "Launching apptainer image ${APPTAINER_IMG}"
+        ${APPTAINER_CMD} run \
+          -B "${fs_license}":/usr/local/freesurfer/.license \
+          -B "${dataset_rawdata}":/rawdata \
+          -B "${dataset_derivatives}":/derivatives \
+          ${APPTAINER_IMG} \
+            /rawdata \
+            /derivatives/${output_label} \
+            participant \
+            --fs-license-file /usr/local/freesurfer/.license \
+            --participant_label "${participant_label}" ${fs_option}
     fi
 
+  fi
+done
 
-elif [ "$tool" == "fmriprep" ]; then
-    fs_option=""
-    freesurfer_dir=${dataset_derivatives}/freesurfer_${DEFAULT_FS_VERSION}
-    if [ -d "${freesurfer_dir}/sub-${participant_label}" ]; then
-      echo "Found pre-computed Freesurfer outputs in ${freesurfer_dir}, re-using them."
-      fs_option="--fs-subjects-dir /derivatives/freesurfer_${DEFAULT_FS_VERSION}"
-    fi
-    # Launch apptainer for fmriprep
-    echo "Launching apptainer image ${APPTAINER_IMG}"
-    ${APPTAINER_CMD} run \
-      -B "${fs_license}":/usr/local/freesurfer/.license \
-      -B "${dataset_rawdata}":/rawdata \
-      -B "${dataset_derivatives}":/derivatives \
-      ${APPTAINER_IMG} \
-        /rawdata \
-        /derivatives/${output_label} \
-        participant \
-        --fs-license-file /usr/local/freesurfer/.license \
-        --participant_label "${participant_label}" ${fs_option}
-fi
