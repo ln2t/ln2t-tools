@@ -176,7 +176,11 @@ for participant in "${participant_list[@]}"; do
       echo "Compressing ..."
       WORKDIR="${PWD}"
       cd "${DICOM_DIR}"
-      tar czf "${DATASET_INITIALS}${participant}.tar.gz" "${DATASET_INITIALS}${participant}"
+      if [ ! -f "${DATASET_INITIALS}${participant}.tar.gz" ]; then
+        tar czf "${DATASET_INITIALS}${participant}.tar.gz" "${DATASET_INITIALS}${participant}"
+      else
+        echo "Compressed dicom already exists, skipping compression."
+      fi
       cd "${WORKDIR}"
       echo "Converting to BIDS ..."
       ${DCM2BIDS_CMD} -o "${RAWDATA_DIR}" -p "${participant}" -d "${dicom}" -c "${DCM2BIDS_CONFIG}"
