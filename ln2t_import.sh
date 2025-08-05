@@ -136,7 +136,7 @@ echo "Dataset: ${dataset:-Not specified}"
 echo "Participant list: ${participant_list[@]:-Not specified}"
 echo "List datasets: ${list_datasets:-Not specified}"
 echo "Clean uncompressed dicom: ${clean_uncompressed_dicom:-Not specified}"
-echo "Check Content: ${check_content:-Not specified}"
+echo "Check content: ${check_content:-Not specified}"
 echo "List uncompressed dicom: ${list_uncompressed_dicom:-Not specified}"
 
 if [ ${list_datasets} = true ]; then
@@ -169,6 +169,13 @@ fi
 # Main loop over participants
 for participant in "${participant_list[@]}"; do
   if [ ! -z "${participant}" ]; then
+    if [ "${check_content}" = true ]; then
+      check_dir_exists "${RAWDATA_DIR}/sub-${participant}"
+      echo "Checking content of imported participant ${participant}"
+      tree "${RAWDATA_DIR}/sub-${participant}"
+      exit 0
+    fi
+
     dicom="${DICOM_DIR}/${DATASET_INITIALS}${participant}"
     if [ "${clean_uncompressed_dicom}" = false ]; then
       echo "Running for participant ${participant}"
@@ -192,12 +199,6 @@ for participant in "${participant_list[@]}"; do
       else
         echo "Compressed file ${dicom}.tar.gz not found, deletion of ${dicom} cancelled."
       fi
-    fi
-
-    if [ "${check_content}" = true ]; then
-      check_dir_exists "${RAWDATA_DIR}/sub-${participant}"
-      echo "Checking content of imported participant ${participant}"
-      tree "${RAWDATA_DIR}/sub-${participant}"
     fi
   fi
 done
