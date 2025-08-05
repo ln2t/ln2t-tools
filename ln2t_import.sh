@@ -70,7 +70,7 @@ list_dir_only() {
 
   for file in $(ls ${input}); do
     echo $file
-    if [ -d "${file}" ]; then
+    if [[ -d "${file}" ]]; then
       echo "${file}"
     fi
   done
