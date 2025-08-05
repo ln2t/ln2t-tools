@@ -69,6 +69,7 @@ list_dir_only() {
   local input="$1"
 
   for file in $(ls ${input}); do
+    echo $file
     if [ -d "${file}" ]; then
       echo "${file}"
     fi
