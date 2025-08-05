@@ -139,6 +139,14 @@ echo "Clean uncompressed dicom: ${clean_uncompressed_dicom:-Not specified}"
 echo "Check Content: ${check_content:-Not specified}"
 echo "List uncompressed dicom: ${list_uncompressed_dicom:-Not specified}"
 
+if [ ${list_datasets} = true ]; then
+  echo "Listing available datasets..."
+  echo "================== AVAILABLE DATASETS =================="
+  ls "${DEFAULT_RAWDATA}" | grep rawdata | sed 's/-rawdata//g'
+  echo "========================================================"
+  exit 0
+fi
+
 # Build dataset-related paths
 DICOM_DIR="${DEFAULT_SOURCEDATA}/${dataset}/dicom"
 RAWDATA_DIR="${DEFAULT_RAWDATA}/${dataset}"
