@@ -150,7 +150,7 @@ fi
 # Build dataset-related paths
 SOURCEDATA_DIR="${DEFAULT_SOURCEDATA}/${dataset}-sourcedata"
 DICOM_DIR="${SOURCEDATA_DIR}/dicom"
-DCM2BIDS_CONFIG="${SOURCEDATA_DIR}/dcm2bibs/config.json"
+DCM2BIDS_CONFIG="${SOURCEDATA_DIR}/dcm2bids/config.json"
 RAWDATA_DIR="${DEFAULT_RAWDATA}/${dataset}-rawdata"
 
 # Checks and set-up
