@@ -22,7 +22,8 @@ usage() {
                     [--version version] \
                     [--participant-label participant_label] \
                     [--list-missing] \
-                    [--more more_options]"
+                    [--more more_options] \
+                    [--help]"
     echo "Available tools: freesurfer, fmriprep"
     exit 1
 }
@@ -141,40 +142,64 @@ while [[ "$#" -gt 0 ]]; do
             shift
             ;;
         --dataset)
-            dataset=$2
+            shift
+            dataset=$1
             shift
             ;;
         --output-label)
-            output_label=$2
+            shift
+            output_label=$1
             shift
             ;;
         --fs-license)
-            fs_license=$2
+            shift
+            fs_license=$1
             shift
             ;;
         --apptainer-dir)
-            apptainer_dir=$2
+            shift
+            apptainer_dir=$1
             shift
             ;;
         --version)
-            version=$2
+            shift
+            version=$1
             shift
             ;;
         --participant-label)
+            shift
             # Remove the 'sub-' if it was provided in the participant_label argument
-            if [[ "$2" == sub-* ]]; then
-              participant_label="${2#sub-}"
+            if [[ "$1" == sub-* ]]; then
+              participant_label="${1#sub-}"
             else
-              participant_label=$2
+              participant_label=$1
             fi
             shift
             ;;
+        --participant-list)
+            shift
+            # Collect all subsequent arguments until the next option
+            while [[ $# -gt 0 && $1 != --* ]]; do
+                if [[ "$1" == sub-* ]]; then
+                  curr_participant_label="${1#sub-}"
+                else
+                  curr_participant_label=$1
+                fi
+                participant_list+=("${curr_participant_label}")
+                shift
+            done
+            ;;
         --list-missing)
             list_missing=true
+            shift
             ;;
         --more)
-            more_options=$2
             shift
+            more_options=$1
+            shift
+            ;;
+        --help)
+            usage
             ;;
         *)
             echo "Unknown parameter passed: $1"
@@ -265,22 +290,29 @@ if [ "$tool" == "freesurfer" ]; then
     participant_dir="${dataset_rawdata}/sub-${participant_label}"
     participant_T1w="${participant_dir}/anat/sub-${participant_label}_T1w.nii.gz"
     check_file_exists "${participant_T1w}"
-    flair_option=""
-    participant_flair="${participant_dir}/anat/sub-${participant_label}_FLAIR.nii.gz"
-    if [ -f "${participant_flair}" ]; then
-      echo "WARNING: untested feature using T2 flag in apptainer call!"
-      flair_option="-T2 /rawdata/sub-${participant_label}/anat/sub-${participant_label}_FLAIR.nii.gz"
+
+    if [ ! -d "${dataset_derivatives}/${output_label}/sub-${participant_label}" ]; then
+      flair_option=""
+      participant_flair="${participant_dir}/anat/sub-${participant_label}_FLAIR.nii.gz"
+      if [ -f "${participant_flair}" ]; then
+        echo "WARNING: untested feature using T2 flag in apptainer call!"
+        flair_option="-T2 /rawdata/sub-${participant_label}/anat/sub-${participant_label}_FLAIR.nii.gz"
+      fi
+      # Launch apptainer for freesurfer
+      echo "Launching apptainer image ${APPTAINER_IMG}"
+      ${APPTAINER_CMD} run \
+        -B "${fs_license}":/usr/local/freesurfer/.license \
+        -B "${dataset_rawdata}":/rawdata \
+        -B "${dataset_derivatives}":/derivatives \
+        ${APPTAINER_IMG} recon-all -all \
+          -subjid "sub-${participant_label}" \
+          -i "/rawdata/sub-${participant_label}/anat/sub-${participant_label}_T1w.nii.gz" \
+          -sd "/derivatives/${output_label}" ${flair_option}
+    else
+      echo "Output subject directory (${dataset_derivatives}/${output_label}/sub-${participant_label}) already exists, skipping subject "
     fi
-    # Launch apptainer for freesurfer
-    echo "Launching apptainer image ${APPTAINER_IMG}"
-    ${APPTAINER_CMD} run \
-      -B "${fs_license}":/usr/local/freesurfer/.license \
-      -B "${dataset_rawdata}":/rawdata \
-      -B "${dataset_derivatives}":/derivatives \
-      ${APPTAINER_IMG} recon-all -all \
-        -subjid "sub-${participant_label}" \
-        -i "/rawdata/sub-${participant_label}/anat/sub-${participant_label}_T1w.nii.gz" \
-        -sd "/derivatives/${output_label}" ${flair_option}
+
+
 elif [ "$tool" == "fmriprep" ]; then
     fs_option=""
     freesurfer_dir=${dataset_derivatives}/freesurfer_${DEFAULT_FS_VERSION}
