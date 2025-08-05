@@ -172,7 +172,7 @@ for participant in "${participant_list[@]}"; do
     dicom="${DICOM_DIR}/${DATASET_INITIALS}${participant}"
     if [ "${clean_uncompressed_dicom}" = false ]; then
       echo "Running for participant ${participant}"
-      check_file_exists ${dicom}
+      check_dir_exists ${dicom}
       echo "Compressing ..."
       tar czf "${dicom}.tar.gz" "${dicom}"
       echo "Converting to BIDS ..."
