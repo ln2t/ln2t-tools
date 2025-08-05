@@ -14,15 +14,7 @@ APPTAINER_OPT="--nv --cleanenv --fuse-mount-timeout 300"
 
 # Display usage information
 usage() {
-    echo "Usage: $0 <tool> [--list-datasets] \
-                    [--dataset dataset] \
-                    [--output-label output_label] \
-                    [--fs-license fs_license] \
-                    [--apptainer-dir apptainer_dir] \
-                    [--version version] \
-                    [--participant-label participant_label] \
-                    [--list-missing] \
-                    [--more more_options]"
+    echo "Usage: $0 <tool> [--list-datasets] [--dataset dataset] [--output-label output_label] [--fs-license fs_license] [--apptainer-dir apptainer_dir] [--version version] [--participant-label participant_label] [--list-missing] [--more more_options]"
     echo "Available tools: freesurfer, fmriprep."
     echo "Type '$0 help' for help"
     exit 1
