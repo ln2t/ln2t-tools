@@ -201,6 +201,7 @@ while [[ "$#" -gt 0 ]]; do
         --help)
             usage
             echo "coucou"
+            shift
             ;;
         *)
             echo "Unknown parameter passed: $1"
