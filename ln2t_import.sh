@@ -202,3 +202,8 @@ for participant in "${participant_list[@]}"; do
     fi
   fi
 done
+
+if [ -d "${RAWDATA_DIR}/tmp_dcm2bids" ]; then
+  echo "Don't forget to manually delete the temporary folder from dcm2bids, if this is what you want to do:"
+  echo "rm -r ${RAWDATA_DIR}/tmp_dcm2bids"
+fi
