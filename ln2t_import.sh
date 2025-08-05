@@ -148,8 +148,8 @@ if [ ${list_datasets} = true ]; then
 fi
 
 # Build dataset-related paths
-DICOM_DIR="${DEFAULT_SOURCEDATA}/${dataset}/dicom"
-RAWDATA_DIR="${DEFAULT_RAWDATA}/${dataset}"
+DICOM_DIR="${DEFAULT_SOURCEDATA}/${dataset}-sourcedata/dicom"
+RAWDATA_DIR="${DEFAULT_RAWDATA}/${dataset}-rawdata"
 DCM2BIDS_CONFIG="${DEFAULT_SOURCEDATA}/${dataset}/dcm2bibs/config.json"
 
 # Checks and set-up
