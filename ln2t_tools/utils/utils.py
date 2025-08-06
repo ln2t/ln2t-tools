@@ -89,7 +89,7 @@ def check_participants_exist(layout, participant_list):
 
 
 def get_t1w_list(layout, participant_label):
-    t1w_list = layout.get(sub=participant_label,
+    t1w_list = layout.get(subject=participant_label,
                           scope="rawdata",
                           suffix="T1w",
                           return_type="filename",
@@ -104,7 +104,7 @@ def get_t1w_list(layout, participant_label):
     return t1w_list
 
 def get_flair_list(layout, participant_label):
-    flair_list = layout.get(sub=participant_label,
+    flair_list = layout.get(subject=participant_label,
                           scope="rawdata",
                           suffix="FLAIR",
                           return_type="filename",

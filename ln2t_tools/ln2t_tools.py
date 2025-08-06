@@ -75,7 +75,7 @@ def main(args=None):
         if args.tool == "freesurfer":
             # Get T1w files with metadata as objects first
             t1w_files = layout.get(
-                sub=participant_label,
+                subject=participant_label,
                 scope="rawdata",
                 suffix="T1w",
                 extension=".nii.gz",
