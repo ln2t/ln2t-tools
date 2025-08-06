@@ -76,18 +76,11 @@ def main(args=None):
             # Get T1w files with metadata as objects first
             t1w_files = layout.get(
                 subject=participant_label,
-                scope="rawdata",
+                scope="raw",
                 suffix="T1w",
                 extension=".nii.gz",
                 return_type="filename"
             )
-
-            print(layout.get(
-                subject=participant_label,
-                suffix="T1w",
-                extension=".nii.gz",
-                return_type="filename"
-            ))
             
             if not t1w_files:
                 print(f"No T1w images found for participant {participant_label}, skipping")
