@@ -11,4 +11,4 @@ DEFAULT_FS_VERSION = "7.3.2"
 DEFAULT_FMRIPREP_VERSION = "23.1.3"
 
 # FreeSurfer license
-DEFAULT_FS_LICENSE = Path("/opt/freesurfer/license.txt")
+DEFAULT_FS_LICENSE = Path("/opt/freesurfer/.license")
