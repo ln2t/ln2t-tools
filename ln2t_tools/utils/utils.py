@@ -47,7 +47,7 @@ def ensure_image_exists(
     Raises:
         FileNotFoundError: If image not found
     """
-    if tool == "freesurfer"=
+    if tool == "freesurfer":
         tool_owner = "freesurfer"
     elif tool == "fmriprep":
         tool_owner = "nipreps"
