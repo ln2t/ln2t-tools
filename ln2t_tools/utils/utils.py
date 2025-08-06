@@ -47,7 +47,13 @@ def ensure_image_exists(
     Raises:
         FileNotFoundError: If image not found
     """
-    image_path = apptainer_dir / f"{tool}_{version}.sif"
+    if tool == "freesurfer"=
+        tool_owner = "freesurfer"
+    elif tool == "fmriprep":
+        tool_owner = "nipreps"
+    else:
+        raise ValueError(f"Unsupported tool: {tool}")
+    image_path = apptainer_dir / f"{tool_owner}.{tool}.{version}.sif"
     if not image_path.exists():
         raise FileNotFoundError(
             f"Apptainer image not found: {image_path}\n"
