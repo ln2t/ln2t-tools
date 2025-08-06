@@ -81,6 +81,13 @@ def main(args=None):
                 extension=".nii.gz",
                 return_type="filename"
             )
+
+            layout.get(
+                subject=participant_label,
+                suffix="T1w",
+                extension=".nii.gz",
+                return_type="filename"
+            )
             
             if not t1w_files:
                 print(f"No T1w images found for participant {participant_label}, skipping")
