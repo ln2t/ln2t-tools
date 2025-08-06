@@ -1,9 +1,28 @@
 from setuptools import setup, find_packages
+from setuptools.command.develop import develop
+from setuptools.command.install import install
+import os
 
 # Function to read the contents of the requirements file
 def read_requirements():
     with open('requirements.txt') as req:
         return req.read().splitlines()
+
+class PostDevelopCommand(develop):
+    """Post-installation for development mode."""
+    def run(self):
+        develop.run(self)
+        # Import and run the install script
+        from ln2t_tools.install.post_install import install_completion
+        install_completion()
+
+class PostInstallCommand(install):
+    """Post-installation for installation mode."""
+    def run(self):
+        install.run(self)
+        # Import and run the install script
+        from ln2t_tools.install.post_install import install_completion
+        install_completion()
 
 setup(
     name="ln2t_tools",
@@ -19,8 +38,12 @@ setup(
             'ln2t_tools = ln2t_tools.ln2t_tools:main',
         ]},
     include_package_data=True,
-    package_data={},
-    data_files=[
-        ('share/bash-completion/completions', ['ln2t_tools/completion/ln2t_tools_completion.bash']),
-    ],
+    cmdclass={
+        'develop': PostDevelopCommand,
+        'install': PostInstallCommand,
+    },
+    package_data={
+        'ln2t_tools': ['completion/*'],
+    },
+    data_files=[],  # Remove data_files as we handle it in post_install
 )

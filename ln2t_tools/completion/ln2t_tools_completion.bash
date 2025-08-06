@@ -1,3 +1,5 @@
+#!/bin/bash
+
 _ln2t_tools_completion() {
     local cur prev words cword
     _init_completion || return
