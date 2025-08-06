@@ -12,7 +12,6 @@ from ln2t_tools.utils.utils import (
     ensure_image_exists,
     check_file_exists,
     check_participants_exist,
-    get_t1w_list,
     get_flair_list,
     launch_apptainer,
     build_apptainer_cmd

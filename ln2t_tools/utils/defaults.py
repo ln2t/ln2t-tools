@@ -8,7 +8,7 @@ DEFAULT_APPTAINER_DIR = Path("/opt/apptainer")
 
 # Tool versions
 DEFAULT_FS_VERSION = "7.3.2"
-DEFAULT_FMRIPREP_VERSION = "23.1.3"
+DEFAULT_FMRIPREP_VERSION = "25.1.4"
 
 # FreeSurfer license
 DEFAULT_FS_LICENSE = Path("/opt/freesurfer/.license")

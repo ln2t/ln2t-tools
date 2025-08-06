@@ -208,8 +208,7 @@ def build_apptainer_cmd(tool, **options):
         return (
             f"apptainer run -B {options['rawdata']}:/rawdata -B {options['derivatives']}:/derivatives "
             f"{options['apptainer_img']} /rawdata /derivatives/fmriprep participant "
-            f"--participant-label {options['participant_label']} "
-            f"--output-spaces MNI152NLin2009cAsym:res-2"
+            f"--participant-label {options['participant_label']}"
         )
     else:
         raise ValueError(f"Unsupported tool: {tool}")
