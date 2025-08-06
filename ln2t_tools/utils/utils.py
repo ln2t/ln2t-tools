@@ -217,5 +217,5 @@ def build_apptainer_cmd(tool, **options):
 
 def launch_apptainer(apptainer_cmd):
     print(f"Launching apptainer image {apptainer_cmd}")
-    subprocess.run(apptainer_cmd, shell=True, check=True)
+    os.system(build_cmd)
 
