@@ -73,7 +73,7 @@ def main(args=None):
 
     for participant_label in participant_list:
         if args.tool == "freesurfer":
-            # Get T1w files with metadata as objects first
+            # Get T1w files
             t1w_files = layout.get(
                 subject=participant_label,
                 scope="raw",
@@ -90,9 +90,10 @@ def main(args=None):
 
             # Process each T1w image with its session/run info
             for t1w in t1w_files:
-                # Extract session and run from the BIDSFile object
-                session = t1w.entities.get('session', None)
-                run = t1w.entities.get('run', None)
+                # Get entities from the layout using the filename
+                entities = layout.parse_file_entities(t1w)
+                session = entities.get('session', None)
+                run = entities.get('run', None)
                 
                 # Build output directory path including session/run
                 output_subdir = f"sub-{participant_label}"
