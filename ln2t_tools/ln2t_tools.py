@@ -29,7 +29,29 @@ def main(args=None):
         list_available_datasets()
         return
 
+    if not args.dataset:
+        print("Error: No dataset specified.")
+        print("\nAvailable datasets:")
+        available_datasets = [name[:-8] for name in os.listdir(DEFAULT_RAWDATA) if name.endswith("-rawdata")]
+        if available_datasets:
+            for dataset in available_datasets:
+                print(f"  - {dataset}")
+        else:
+            print("  No datasets found in", DEFAULT_RAWDATA)
+            
+        print("\nUsage example:")
+        print(f"  ln2t_tools --dataset <dataset_name> --tool {args.tool or 'freesurfer'} --participant-label 01")
+        return
+
     dataset_rawdata = os.path.join(DEFAULT_RAWDATA, f"{args.dataset}-rawdata")
+    if not os.path.exists(dataset_rawdata):
+        print(f"Error: Dataset '{args.dataset}' not found in {DEFAULT_RAWDATA}")
+        print("\nAvailable datasets:")
+        available_datasets = [name[:-8] for name in os.listdir(DEFAULT_RAWDATA) if name.endswith("-rawdata")]
+        for dataset in available_datasets:
+            print(f"  - {dataset}")
+        return
+
     dataset_derivatives = os.path.join(DEFAULT_DERIVATIVES, f"{args.dataset}-derivatives")
     output_dir = os.path.join(dataset_derivatives, args.output_label or f"{args.tool}_{args.version or DEFAULT_FS_VERSION if args.tool == 'freesurfer' else DEFAULT_FMRIPREP_VERSION}")
 
