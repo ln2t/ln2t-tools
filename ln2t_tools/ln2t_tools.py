@@ -79,7 +79,7 @@ def main(args=None):
                 scope="rawdata",
                 suffix="T1w",
                 extension=".nii.gz",
-                return_type="object"  # Changed from "tuple" to "object"
+                return_type="filename"
             )
             
             if not t1w_files:

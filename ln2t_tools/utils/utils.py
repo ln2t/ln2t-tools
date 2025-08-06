@@ -95,12 +95,6 @@ def get_t1w_list(layout, participant_label):
                           return_type="filename",
                           extension=".nii.gz")
 
-    if len(t1w_list) > 1:
-        warn(f"Found more than one (actually, "
-             f"{len(t1w_list)}) T1w images for subject "
-             f"{participant_label}: {t1w_list}"
-             f"The tools does not support this very well yet, and we will only process the first image.")
-
     return t1w_list
 
 def get_flair_list(layout, participant_label):
