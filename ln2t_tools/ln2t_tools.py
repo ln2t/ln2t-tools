@@ -112,16 +112,14 @@ def main(args=None):
                     print(f"Output directory ({output_participant_dir}) already exists, skipping")
                     continue
 
-                # Get the actual file path
-                t1w_path = t1w.path  # BIDSFile object has a path attribute
-
+                # t1w is already the file path, no need for .path
                 apptainer_cmd = build_apptainer_cmd(
                     tool="freesurfer",
                     fs_license=args.fs_license,
                     rawdata=dataset_rawdata,
                     derivatives=dataset_derivatives,
                     participant_label=participant_label,
-                    t1w=t1w_path,
+                    t1w=t1w,  # Changed from t1w_path to t1w
                     apptainer_img=apptainer_img,
                     output_label=args.output_label or f"freesurfer_{args.version or DEFAULT_FS_VERSION}",
                     session=session,
