@@ -1,52 +1,114 @@
 import argparse
+from pathlib import Path
+from typing import Optional, Namespace
 
-from ln2t_tools.utils.defaults import DEFAULT_FS_LICENSE, DEFAULT_APPTAINER_DIR
+from ln2t_tools.utils.defaults import (
+    DEFAULT_FS_LICENSE,
+    DEFAULT_APPTAINER_DIR
+)
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="ln2t_tools CLI")
+def parse_args() -> Namespace:
+    """Parse command line arguments.
 
-    parser.add_argument("tool", help="Tool to use: freesurfer, fmriprep")
-    parser.add_argument("--list-datasets", action="store_true", help="List available datasets")
-    parser.add_argument("--dataset", help="Dataset name")
-    parser.add_argument("--output-label", help="Output label")
-    parser.add_argument("--fs-license", default=DEFAULT_FS_LICENSE, help="Freesurfer license file path")
-    parser.add_argument("--apptainer-dir", default=DEFAULT_APPTAINER_DIR, help="Apptainer directory")
-    parser.add_argument("--version", help="Version of the tool")
-    parser.add_argument("--participant-label", help="Participant label")
-    parser.add_argument("--participant-list", nargs='+', help="List of participant labels")
-    parser.add_argument("--list-missing", action="store_true", help="List missing runs")
-    parser.add_argument("--more", help="More options")
+    Returns:
+        Namespace: Parsed command line arguments
+    """
+    parser = argparse.ArgumentParser(
+        description="LN2T Tools - Neuroimaging Pipeline Runner",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
 
-    # Parse the arguments
+    parser.add_argument(
+        "tool",
+        choices=["freesurfer", "fmriprep"],
+        help="Neuroimaging tool to use"
+    )
+
+    parser.add_argument(
+        "--dataset",
+        help="BIDS dataset name (without -rawdata suffix)"
+    )
+
+    parser.add_argument(
+        "--participant-label",
+        help="Single participant label (without 'sub-' prefix)"
+    )
+
+    parser.add_argument(
+        "--participant-list",
+        nargs="+",
+        help="List of participant labels to process"
+    )
+
+    parser.add_argument(
+        "--output-label",
+        help="Custom label for output directory"
+    )
+
+    parser.add_argument(
+        "--fs-license",
+        type=Path,
+        default=DEFAULT_FS_LICENSE,
+        help="Path to FreeSurfer license file"
+    )
+
+    parser.add_argument(
+        "--apptainer-dir",
+        type=Path,
+        default=DEFAULT_APPTAINER_DIR,
+        help="Path to Apptainer images directory"
+    )
+
+    parser.add_argument(
+        "--version",
+        help="Tool version to use"
+    )
+
+    parser.add_argument(
+        "--list-datasets",
+        action="store_true",
+        help="List available BIDS datasets"
+    )
+
+    parser.add_argument(
+        "--list-missing",
+        action="store_true",
+        help="List subjects missing from output"
+    )
+
     return parser.parse_args()
 
 
-def setup_terminal_colors():
+def setup_terminal_colors() -> None:
+    """Configure colored output for warnings and errors."""
     import warnings
     import traceback
     import sys
 
-    # ANSI escape codes for colors
     YELLOW = '\033[93m'
-    RESET = '\033[0m'
-
-    def custom_warning_format(message, category, filename, lineno, line=None):
-        # Define the color for the warning message
-        return f"{YELLOW}{filename}:{lineno}: {category.__name__}: {message}{RESET}\n"
-
-    # Set the custom warning formatter
-    warnings.formatwarning = custom_warning_format
-
-    # ANSI escape codes for colors
     RED = '\033[91m'
     RESET = '\033[0m'
 
-    def custom_exception_handler(exc_type, exc_value, exc_traceback):
-        # Format the exception traceback with color
-        tb_str = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-        print(f"{RED}{tb_str}{RESET}", end="")
+    def warning_formatter(
+        message: str,
+        category: Warning,
+        filename: str,
+        lineno: int,
+        line: Optional[str] = None
+    ) -> str:
+        """Format warning messages with color."""
+        return f"{YELLOW}{filename}:{lineno}: {category.__name__}: {message}{RESET}\n"
 
-    # Set the custom exception handler
-    sys.excepthook = custom_exception_handler
+    def exception_handler(
+        exc_type: type,
+        exc_value: Exception,
+        exc_traceback: traceback.TracebackType
+    ) -> None:
+        """Format exception messages with color."""
+        tb_str = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        print(f"{RED}{tb_str}{RESET}", file=sys.stderr)
+
+    warnings.formatwarning = warning_formatter
+    sys.excepthook = exception_handler
 

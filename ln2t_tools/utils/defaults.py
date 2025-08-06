@@ -1,9 +1,14 @@
-import os
+"""Default values and constants for ln2t_tools."""
+from pathlib import Path
 
-# Default variables
-DEFAULT_APPTAINER_DIR = "/opt/apptainer"
+# Default directories
+DEFAULT_RAWDATA = Path("/data/rawdata")
+DEFAULT_DERIVATIVES = Path("/data/derivatives")
+DEFAULT_APPTAINER_DIR = Path("/opt/apptainer")
+
+# Tool versions
 DEFAULT_FS_VERSION = "7.3.2"
-DEFAULT_FMRIPREP_VERSION = "25.1.4"
-DEFAULT_FS_LICENSE = "/opt/freesurfer/.license"
-DEFAULT_RAWDATA = os.path.join(os.environ['HOME'], "rawdata")
-DEFAULT_DERIVATIVES = os.path.join(os.environ['HOME'], "derivatives")
+DEFAULT_FMRIPREP_VERSION = "23.1.3"
+
+# FreeSurfer license
+DEFAULT_FS_LICENSE = Path("/opt/freesurfer/license.txt")

@@ -1,56 +1,98 @@
 import os
-import subprocess
+import shutil
+import logging
+from pathlib import Path
+from typing import List, Optional
 from warnings import warn
 
-from ln2t_tools.utils.defaults import DEFAULT_RAWDATA
+from bids import BIDSLayout
 
-def list_available_datasets():
-    [print(name[:-8]) for name in os.listdir(DEFAULT_RAWDATA) if name.endswith("-rawdata")]
+from ln2t_tools.utils.defaults import (
+    DEFAULT_RAWDATA,
+    DEFAULT_DERIVATIVES
+)
 
+logger = logging.getLogger(__name__)
 
-def list_missing_subjects(rawdata_dir: str, output_dir: str):
-    if not os.path.isdir(rawdata_dir):
-        print(f"Error: {rawdata_dir} does not exist.")
+def check_apptainer_is_installed(apptainer_path: str = "/usr/bin/apptainer") -> None:
+    """Verify Apptainer is installed and accessible.
+    
+    Args:
+        apptainer_path: Path to apptainer executable
+        
+    Raises:
+        FileNotFoundError: If apptainer is not found
+    """
+    if not shutil.which(apptainer_path):
+        raise FileNotFoundError(
+            f"Apptainer not found at {apptainer_path}. "
+            "Please install Apptainer first."
+        )
+
+def ensure_image_exists(
+    apptainer_dir: Path,
+    tool: str,
+    version: str
+) -> Path:
+    """Ensure Apptainer image exists and return its path.
+    
+    Args:
+        apptainer_dir: Directory containing Apptainer images
+        tool: Tool name ('freesurfer' or 'fmriprep')
+        version: Tool version
+        
+    Returns:
+        Path to Apptainer image
+        
+    Raises:
+        FileNotFoundError: If image not found
+    """
+    image_path = apptainer_dir / f"{tool}_{version}.sif"
+    if not image_path.exists():
+        raise FileNotFoundError(
+            f"Apptainer image not found: {image_path}\n"
+            f"Please download the {tool} version {version} image first."
+        )
+    return image_path
+
+def list_available_datasets() -> None:
+    """List available BIDS datasets in rawdata directory."""
+    available = [name[:-8] for name in os.listdir(DEFAULT_RAWDATA) 
+                if name.endswith("-rawdata")]
+    
+    if not available:
+        logger.info(f"No datasets found in {DEFAULT_RAWDATA}")
         return
+    
+    logger.info("Available datasets:")
+    for dataset in available:
+        logger.info(f"  - {dataset}")
 
-    os.makedirs(output_dir, exist_ok=True)
-
-    raw_sub_folders = [name for name in os.listdir(rawdata_dir) if os.path.isdir(os.path.join(rawdata_dir, name)) and name.startswith("sub-")]
-    output_sub_folders = [name for name in os.listdir(output_dir) if os.path.isdir(os.path.join(output_dir, name)) and name.startswith("sub-")]
-
-    print(f"Folders in {rawdata_dir} that are not in {output_dir}:")
-    for folder in raw_sub_folders:
-        if folder not in output_sub_folders:
-            print(folder)
-
-
-def check_apptainer_is_installed(apptainer_cmd: str):
-    if not os.path.isfile(apptainer_cmd):
-        print(f"Apptainer not found at {apptainer_cmd}, are you sure it is installed?")
-        exit(1)
-
-
-def ensure_image_exists(apptainer_dir: str, tool: str, version: str):
-    if tool == "freesurfer":
-        file_path = os.path.join(apptainer_dir, f"freesurfer.freesurfer.{version}.sif")
-        create_command = f"apptainer build {file_path} docker://freesurfer/freesurfer:{version}"
-    elif tool == "fmriprep":
-        file_path = os.path.join(apptainer_dir, f"nipreps.fmriprep.{version}.sif")
-        create_command = f"apptainer build {file_path} docker://nipreps/fmriprep:{version}"
+def list_missing_subjects(
+    rawdata_dir: Path,
+    output_dir: Path
+) -> None:
+    """List subjects present in rawdata but missing from output.
+    
+    Args:
+        rawdata_dir: Path to BIDS rawdata directory
+        output_dir: Path to derivatives output directory
+    """
+    raw_layout = BIDSLayout(rawdata_dir)
+    raw_subjects = set(raw_layout.get_subjects())
+    
+    processed_subjects = {
+        d.name[4:] for d in output_dir.glob("sub-*")
+        if d.is_dir()
+    }
+    
+    missing = raw_subjects - processed_subjects
+    if missing:
+        logger.info("Missing subjects:")
+        for subject in sorted(missing):
+            logger.info(f"  - {subject}")
     else:
-        print(f"Unknown tool: {tool}")
-        exit(1)
-
-    if not os.path.isfile(file_path):
-        print(f"File {file_path} does not exist. Creating it...")
-        os.makedirs(apptainer_dir, exist_ok=True)
-        subprocess.run(create_command, shell=True, check=True)
-        print(f"File {file_path} created successfully.")
-    else:
-        print(f"File {file_path} already exists.")
-
-    return file_path
-
+        logger.info("No missing subjects found")
 
 def check_file_exists(file_path: str):
     if not os.path.isfile(file_path):
