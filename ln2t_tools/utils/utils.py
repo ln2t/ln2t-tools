@@ -237,8 +237,12 @@ def build_apptainer_cmd(tool: str, **options) -> str:
         )
     elif tool == "fmriprep":
         fs_subjects_dir = options.get('fs_subjects_dir', '')
+        fs_bind_option = (
+            f"-B {fs_subjects_dir.parent}:/opt/freesurfer/subjects:ro" 
+            if fs_subjects_dir else ""
+        )
         fs_subjects_dir_option = (
-            f"--fs-subjects-dir /derivatives/{fs_subjects_dir.name} " 
+            f"--fs-subjects-dir /opt/freesurfer/subjects/{fs_subjects_dir.name} " 
             if fs_subjects_dir else ""
         )
         
@@ -247,6 +251,7 @@ def build_apptainer_cmd(tool: str, **options) -> str:
             f"-B {options['fs_license']}:/opt/freesurfer/license.txt "
             f"-B {options['rawdata']}:/data:ro "
             f"-B {options['derivatives']}:/derivatives "
+            f"{fs_bind_option} "
             f"{options['apptainer_img']} "
             f"/data /derivatives participant "
             f"--participant-label {options['participant_label']} "
