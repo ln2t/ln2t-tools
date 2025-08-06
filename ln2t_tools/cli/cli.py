@@ -1,6 +1,10 @@
 import argparse
+import warnings
+import traceback
+import sys
 from pathlib import Path
 from typing import Optional
+from types import TracebackType  # Add this import
 
 from ln2t_tools.utils.defaults import (
     DEFAULT_FS_LICENSE,
@@ -82,10 +86,6 @@ def parse_args() -> argparse.Namespace:
 
 def setup_terminal_colors() -> None:
     """Configure colored output for warnings and errors."""
-    import warnings
-    import traceback
-    import sys
-
     YELLOW = '\033[93m'
     RED = '\033[91m'
     RESET = '\033[0m'
@@ -103,7 +103,7 @@ def setup_terminal_colors() -> None:
     def exception_handler(
         exc_type: type,
         exc_value: Exception,
-        exc_traceback: traceback.TracebackType
+        exc_traceback: TracebackType  # Now TracebackType is properly imported
     ) -> None:
         """Format exception messages with color."""
         tb_str = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
