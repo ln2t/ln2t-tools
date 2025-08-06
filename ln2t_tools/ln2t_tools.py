@@ -5,7 +5,6 @@ from ln2t_tools.cli.cli import parse_args
 from ln2t_tools.cli.cli import setup_terminal_colors
 from ln2t_tools.utils.utils import (list_available_datasets,
                                     list_missing_subjects,
-                                    show_dir_content,
                                     check_apptainer_is_installed,
                                     ensure_image_exists,
                                     check_file_exists,
@@ -61,8 +60,6 @@ def main(args=None):
         list_missing_subjects(dataset_rawdata, output_dir)
         return
 
-    show_dir_content(dataset_rawdata)
-
     if args.tool in ["freesurfer", "fmriprep"]:  # Changed from args.tools to args.tool
         check_apptainer_is_installed("/usr/bin/apptainer")
         apptainer_img = ensure_image_exists(args.apptainer_dir, args.tool, args.version or DEFAULT_FS_VERSION if args.tool == "freesurfer" else DEFAULT_FMRIPREP_VERSION)
@@ -76,25 +73,26 @@ def main(args=None):
 
     for participant_label in participant_list:
         if args.tool == "freesurfer":
-            t1w_entities = layout.get(
+            # Get T1w files with metadata as objects first
+            t1w_files = layout.get(
                 sub=participant_label,
                 scope="rawdata",
                 suffix="T1w",
                 extension=".nii.gz",
-                return_type="tuple"
+                return_type="object"  # Changed from "tuple" to "object"
             )
             
-            if not t1w_entities:
+            if not t1w_files:
                 print(f"No T1w images found for participant {participant_label}, skipping")
                 continue
 
             _ = get_flair_list(layout, participant_label)
 
             # Process each T1w image with its session/run info
-            for t1w_entity in t1w_entities:
-                # Extract session and run if they exist
-                session = t1w_entity.get('session', None)
-                run = t1w_entity.get('run', None)
+            for t1w in t1w_files:
+                # Extract session and run from the BIDSFile object
+                session = t1w.entities.get('session', None)
+                run = t1w.entities.get('run', None)
                 
                 # Build output directory path including session/run
                 output_subdir = f"sub-{participant_label}"
@@ -113,15 +111,8 @@ def main(args=None):
                     print(f"Output directory ({output_participant_dir}) already exists, skipping")
                     continue
 
-                # Get the actual T1w file path
-                t1w_file = layout.get(
-                    sub=participant_label,
-                    session=session,
-                    run=run,
-                    suffix="T1w",
-                    extension=".nii.gz",
-                    return_type="filename"
-                )[0]
+                # Get the actual file path
+                t1w_path = t1w.path  # BIDSFile object has a path attribute
 
                 apptainer_cmd = build_apptainer_cmd(
                     tool="freesurfer",
@@ -129,7 +120,7 @@ def main(args=None):
                     rawdata=dataset_rawdata,
                     derivatives=dataset_derivatives,
                     participant_label=participant_label,
-                    t1w=t1w_file,
+                    t1w=t1w_path,
                     apptainer_img=apptainer_img,
                     output_label=args.output_label or f"freesurfer_{args.version or DEFAULT_FS_VERSION}",
                     session=session,

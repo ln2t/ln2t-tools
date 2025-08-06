@@ -24,11 +24,6 @@ def list_missing_subjects(rawdata_dir: str, output_dir: str):
             print(folder)
 
 
-def show_dir_content(directory: str):
-    print(f"Listing contents of {directory}:")
-    print(os.listdir(directory))
-
-
 def check_apptainer_is_installed(apptainer_cmd: str):
     if not os.path.isfile(apptainer_cmd):
         print(f"Apptainer not found at {apptainer_cmd}, are you sure it is installed?")
@@ -67,13 +62,28 @@ def check_file_exists(file_path: str):
 
 
 def check_participants_exist(layout, participant_list):
+    """Check if participants exist in the BIDS layout.
+    
+    Args:
+        layout: BIDSLayout object
+        participant_list: List of participant labels or None to use all participants
+    
+    Returns:
+        list: List of valid participant labels
+    """
+    if not participant_list:
+        # If no participants specified, use all available in the dataset
+        return layout.get_subjects()
+        
     true_participant_list = []
-
     for participant in participant_list:
         if participant in layout.get_subjects():
             true_participant_list.append(participant)
         else:
             warn(f"Participant {participant} not found in the dataset, removing from the list.")
+
+    if not true_participant_list:
+        raise ValueError("No valid participants found in the dataset.")
 
     return true_participant_list
 
