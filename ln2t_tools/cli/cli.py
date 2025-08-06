@@ -1,6 +1,6 @@
 import argparse
 from pathlib import Path
-from typing import Optional, Namespace
+from typing import Optional
 
 from ln2t_tools.utils.defaults import (
     DEFAULT_FS_LICENSE,
@@ -8,11 +8,11 @@ from ln2t_tools.utils.defaults import (
 )
 
 
-def parse_args() -> Namespace:
+def parse_args() -> argparse.Namespace:
     """Parse command line arguments.
 
     Returns:
-        Namespace: Parsed command line arguments
+        argparse.Namespace: Parsed command line arguments
     """
     parser = argparse.ArgumentParser(
         description="LN2T Tools - Neuroimaging Pipeline Runner",
