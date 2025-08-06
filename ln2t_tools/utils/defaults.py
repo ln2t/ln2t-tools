@@ -2,8 +2,8 @@
 from pathlib import Path
 
 # Default directories
-DEFAULT_RAWDATA = Path("/data/rawdata")
-DEFAULT_DERIVATIVES = Path("/data/derivatives")
+DEFAULT_RAWDATA = Path.home() / Path("rawdata")
+DEFAULT_DERIVATIVES = Path.home() / Path("derivatives")
 DEFAULT_APPTAINER_DIR = Path("/opt/apptainer")
 
 # Tool versions
