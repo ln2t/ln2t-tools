@@ -167,24 +167,27 @@ def get_flair_list(layout, participant_label):
     return flair_list
 
 
-def build_apptainer_cmd(tool, **options):
-    """Build Apptainer command for different neuroimaging tools.
+def build_apptainer_cmd(tool: str, **options) -> str:
+    """Build Apptainer command for neuroimaging tools.
     
     Args:
-        tool (str): Tool name ('freesurfer' or 'fmriprep')
-        **options: Dictionary containing required parameters
-            - fs_license: Path to FreeSurfer license file
-            - rawdata: Path to BIDS rawdata directory
+        tool: Tool name ('freesurfer' or 'fmriprep')
+        **options: Tool-specific options including:
+            - fs_license: Path to FreeSurfer license
+            - rawdata: Path to BIDS rawdata
             - derivatives: Path to derivatives directory
-            - apptainer_img: Path to Apptainer image
             - participant_label: Subject ID
+            - apptainer_img: Path to Apptainer image
             - output_label: Output directory name
-            - session: Optional session ID
-            - run: Optional run number
-            - flair_option: Optional FLAIR processing arguments
+            - session: Optional session ID (FreeSurfer)
+            - run: Optional run number (FreeSurfer)
+            - fs_no_reconall: Skip FreeSurfer reconstruction (fMRIPrep)
+            - output_spaces: Output spaces (fMRIPrep)
+            - nprocs: Number of processes (fMRIPrep)
+            - omp_nthreads: OpenMP threads (fMRIPrep)
     
     Returns:
-        str: Formatted Apptainer command
+        Formatted Apptainer command
     """
     if tool == "freesurfer":
         if "fs_license" not in options:
@@ -206,10 +209,20 @@ def build_apptainer_cmd(tool, **options):
         )
     elif tool == "fmriprep":
         return (
-            f"apptainer run -B {options['rawdata']}:/rawdata -B {options['derivatives']}:/derivatives "
-            f"{options['apptainer_img']} /rawdata /derivatives/fmriprep participant "
-            f"--participant-label {options['participant_label']}"
+            f"apptainer run "
+            f"-B {options['fs_license']}:/opt/freesurfer/license.txt "
+            f"-B {options['rawdata']}:/data:ro "
+            f"-B {options['derivatives']}:/out "
+            f"{options['apptainer_img']} "
+            f"/data /out participant "
+            f"--participant-label {options['participant_label']} "
+            f"--output-spaces {options.get('output_spaces', 'MNI152NLin2009cAsym:res-2')} "
+            f"--nprocs {options.get('nprocs', 8)} "
+            f"--omp-nthreads {options.get('omp_nthreads', 8)} "
+            f"--fs-license-file /opt/freesurfer/license.txt "
+            f"{options.get('fs_no_reconall', '')}"
         )
+    
     else:
         raise ValueError(f"Unsupported tool: {tool}")
 

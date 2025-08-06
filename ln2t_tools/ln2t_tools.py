@@ -152,6 +152,77 @@ def build_bids_subdir(
         parts.append(f"run-{run}")
     return "_".join(parts)
 
+def process_fmriprep_subject(
+    layout: BIDSLayout,
+    participant_label: str,
+    args,
+    dataset_rawdata: Path,
+    dataset_derivatives: Path,
+    apptainer_img: str
+) -> None:
+    """Process a single subject with fMRIPrep.
+    
+    Args:
+        layout: BIDSLayout object for BIDS dataset
+        participant_label: Subject ID without 'sub-' prefix
+        args: Parsed command line arguments
+        dataset_rawdata: Path to BIDS rawdata directory
+        dataset_derivatives: Path to derivatives directory
+        apptainer_img: Path to Apptainer image
+    """
+    # Check for required files
+    t1w_files = layout.get(
+        subject=participant_label,
+        scope="raw",
+        suffix="T1w",
+        extension=".nii.gz",
+        return_type="filename"
+    )
+    
+    if not t1w_files:
+        logger.warning(f"No T1w images found for participant {participant_label}")
+        return
+
+    # Check for functional data
+    func_files = layout.get(
+        subject=participant_label,
+        scope="raw",
+        suffix="bold",
+        extension=".nii.gz",
+        return_type="filename"
+    )
+    
+    if not func_files:
+        logger.warning(f"No functional data found for participant {participant_label}")
+        return
+
+    # Build output directory path
+    output_subdir = build_bids_subdir(participant_label)
+    output_participant_dir = dataset_derivatives / (
+        args.output_label or 
+        f"fmriprep_{args.version or DEFAULT_FMRIPREP_VERSION}"
+    ) / output_subdir
+
+    if output_participant_dir.exists():
+        logger.info(f"Output exists, skipping: {output_participant_dir}")
+        return
+
+    # Build and launch fMRIPrep command
+    apptainer_cmd = build_apptainer_cmd(
+        tool="fmriprep",
+        fs_license=args.fs_license,
+        rawdata=str(dataset_rawdata),
+        derivatives=str(dataset_derivatives),
+        participant_label=participant_label,
+        apptainer_img=apptainer_img,
+        output_label=args.output_label or f"fmriprep_{args.version or DEFAULT_FMRIPREP_VERSION}",
+        fs_no_reconall="--fs-no-reconall" if getattr(args, 'fs_no_reconall', False) else "",
+        output_spaces=getattr(args, 'output_spaces', "MNI152NLin2009cAsym:res-2"),
+        nprocs=getattr(args, 'nprocs', 8),
+        omp_nthreads=getattr(args, 'omp_nthreads', 8)
+    )
+    launch_apptainer(apptainer_cmd=apptainer_cmd)
+
 def main(args=None) -> None:
     """Main entry point for ln2t_tools."""
     if args is None:
@@ -206,6 +277,18 @@ def main(args=None) -> None:
                     dataset_derivatives=dataset_derivatives,
                     apptainer_img=apptainer_img
                 )
+            elif args.tool == "fmriprep":
+                process_fmriprep_subject(
+                    layout=layout,
+                    participant_label=participant_label,
+                    args=args,
+                    dataset_rawdata=dataset_rawdata,
+                    dataset_derivatives=dataset_derivatives,
+                    apptainer_img=apptainer_img
+                )
+            else:
+                logger.error(f"Unsupported tool: {args.tool}")
+                return
 
     except Exception as e:
         logger.error(f"Error during processing: {str(e)}")

@@ -81,6 +81,32 @@ def parse_args() -> argparse.Namespace:
         help="List subjects missing from output"
     )
 
+    parser.add_argument(
+        "--fs-no-reconall",
+        action="store_true",
+        help="Skip FreeSurfer surface reconstruction (fMRIPrep only)"
+    )
+
+    parser.add_argument(
+        "--output-spaces",
+        default="MNI152NLin2009cAsym:res-2",
+        help="Output spaces for fMRIPrep (default: MNI152NLin2009cAsym:res-2)"
+    )
+
+    parser.add_argument(
+        "--nprocs",
+        type=int,
+        default=8,
+        help="Number of processes to use (default: 8)"
+    )
+
+    parser.add_argument(
+        "--omp-nthreads",
+        type=int,
+        default=8,
+        help="Number of OpenMP threads (default: 8)"
+    )
+
     return parser.parse_args()
 
 
