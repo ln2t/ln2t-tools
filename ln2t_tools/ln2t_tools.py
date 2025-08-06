@@ -160,16 +160,7 @@ def process_fmriprep_subject(
     dataset_derivatives: Path,
     apptainer_img: str
 ) -> None:
-    """Process a single subject with fMRIPrep.
-    
-    Args:
-        layout: BIDSLayout object for BIDS dataset
-        participant_label: Subject ID without 'sub-' prefix
-        args: Parsed command line arguments
-        dataset_rawdata: Path to BIDS rawdata directory
-        dataset_derivatives: Path to derivatives directory
-        apptainer_img: Path to Apptainer image
-    """
+    """Process a single subject with fMRIPrep."""
     # Check for required files
     t1w_files = layout.get(
         subject=participant_label,
@@ -196,6 +187,16 @@ def process_fmriprep_subject(
         logger.warning(f"No functional data found for participant {participant_label}")
         return
 
+    # Check for existing FreeSurfer output
+    entities = layout.parse_file_entities(t1w_files[0])
+    fs_output_dir = get_freesurfer_output(
+        derivatives_dir=dataset_derivatives,
+        participant_label=participant_label,
+        version=DEFAULT_FS_VERSION,
+        session=entities.get('session'),
+        run=entities.get('run')
+    )
+
     # Build output directory path
     output_subdir = build_bids_subdir(participant_label)
     output_participant_dir = dataset_derivatives / (
@@ -207,6 +208,15 @@ def process_fmriprep_subject(
         logger.info(f"Output exists, skipping: {output_participant_dir}")
         return
 
+    # If FreeSurfer output exists, use it
+    if fs_output_dir and not args.fs_no_reconall:
+        logger.info(f"Using existing FreeSurfer output: {fs_output_dir}")
+        fs_no_reconall = "--fs-no-reconall"
+    else:
+        logger.info("No existing FreeSurfer output found, will run reconstruction")
+        fs_no_reconall = ""
+        fs_output_dir = None
+
     # Build and launch fMRIPrep command
     apptainer_cmd = build_apptainer_cmd(
         tool="fmriprep",
@@ -216,10 +226,11 @@ def process_fmriprep_subject(
         participant_label=participant_label,
         apptainer_img=apptainer_img,
         output_label=args.output_label or f"fmriprep_{args.version or DEFAULT_FMRIPREP_VERSION}",
-        fs_no_reconall="--fs-no-reconall" if getattr(args, 'fs_no_reconall', False) else "",
+        fs_no_reconall=fs_no_reconall,
         output_spaces=getattr(args, 'output_spaces', "MNI152NLin2009cAsym:res-2"),
         nprocs=getattr(args, 'nprocs', 8),
-        omp_nthreads=getattr(args, 'omp_nthreads', 8)
+        omp_nthreads=getattr(args, 'omp_nthreads', 8),
+        fs_subjects_dir=fs_output_dir
     )
     launch_apptainer(apptainer_cmd=apptainer_cmd)
 

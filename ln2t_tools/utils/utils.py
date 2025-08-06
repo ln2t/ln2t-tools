@@ -167,6 +167,34 @@ def get_flair_list(layout, participant_label):
     return flair_list
 
 
+def get_freesurfer_output(
+    derivatives_dir: Path,
+    participant_label: str,
+    version: str,
+    session: Optional[str] = None,
+    run: Optional[str] = None
+) -> Optional[Path]:
+    """Check if FreeSurfer output exists for a subject.
+    
+    Args:
+        derivatives_dir: Path to derivatives directory
+        participant_label: Subject ID
+        version: FreeSurfer version
+        session: Optional session ID
+        run: Optional run number
+        
+    Returns:
+        Path to FreeSurfer output directory if it exists, None otherwise
+    """
+    subject_id = f"sub-{participant_label}"
+    if session:
+        subject_id += f"_ses-{session}"
+    if run:
+        subject_id += f"_run-{run}"
+        
+    fs_dir = derivatives_dir / f"freesurfer_{version}" / subject_id
+    return fs_dir if fs_dir.exists() and (fs_dir / "surf/rh.white").exists() else None
+
 def build_apptainer_cmd(tool: str, **options) -> str:
     """Build Apptainer command for neuroimaging tools.
     
@@ -202,17 +230,23 @@ def build_apptainer_cmd(tool: str, **options) -> str:
             
         return (
             f"apptainer run -B {options['fs_license']}:/usr/local/freesurfer/.license "
-            f"-B {options['rawdata']}:/rawdata -B {options['derivatives']}:/derivatives "
+            f"-B {options['rawdata']}:/rawdata:ro -B {options['derivatives']}:/derivatives "
             f"{options['apptainer_img']} recon-all -all -subjid {subject_id} "
             f"-i {options['t1w']} "
             f"-sd /derivatives/{options['output_label']} {options.get('flair_option', '')}"
         )
     elif tool == "fmriprep":
+        fs_subjects_dir = options.get('fs_subjects_dir', '')
+        fs_subjects_dir_option = (
+            f"--fs-subjects-dir /derivatives/{fs_subjects_dir.name} " 
+            if fs_subjects_dir else ""
+        )
+        
         return (
             f"apptainer run "
             f"-B {options['fs_license']}:/opt/freesurfer/license.txt "
             f"-B {options['rawdata']}:/data:ro "
-            f"-B {options['derivatives']}:/out "
+            f"-B {options['derivatives']}:/derivatives "
             f"{options['apptainer_img']} "
             f"/data /out participant "
             f"--participant-label {options['participant_label']} "
@@ -220,7 +254,8 @@ def build_apptainer_cmd(tool: str, **options) -> str:
             f"--nprocs {options.get('nprocs', 8)} "
             f"--omp-nthreads {options.get('omp_nthreads', 8)} "
             f"--fs-license-file /opt/freesurfer/license.txt "
-            f"{options.get('fs_no_reconall', '')}"
+            f"{options.get('fs_no_reconall', '')} "
+            f"{fs_subjects_dir_option}"
         )
     
     else:
