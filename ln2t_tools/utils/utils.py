@@ -55,10 +55,19 @@ def ensure_image_exists(
         raise ValueError(f"Unsupported tool: {tool}")
     image_path = apptainer_dir / f"{tool_owner}.{tool}.{version}.sif"
     if not image_path.exists():
-        raise FileNotFoundError(
+        logger.warning(
             f"Apptainer image not found: {image_path}\n"
-            f"Please download the {tool} version {version} image first."
+            f"Attempting to build the {tool} version {version} image..."
         )
+        build_cmd = (
+            f"apptainer build {image_path} docker://{tool_owner}/{tool}:{version}"
+        )
+        result = os.system(build_cmd)
+        if result != 0 or not image_path.exists():
+            raise FileNotFoundError(
+                f"Failed to build Apptainer image: {image_path}\n"
+                f"Please check Apptainer installation and Docker image availability."
+            )
     return image_path
 
 def list_available_datasets() -> None:
