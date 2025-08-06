@@ -7,6 +7,18 @@ _ln2t_tools_completion() {
     # List of tools
     local tools="freesurfer fmriprep"
     
+    # Function to get dataset name from command line
+    _get_dataset_name() {
+        local words=("${COMP_WORDS[@]}")
+        for ((i=1; i<${#words[@]}-1; i++)); do
+            if [[ "${words[i]}" == "--dataset" ]]; then
+                echo "${words[i+1]}"
+                return 0
+            fi
+        done
+        return 1
+    }
+
     # Handle basic commands
     if [ $cword -eq 1 ]; then
         COMPREPLY=( $(compgen -W "${tools}" -- "$cur") )
@@ -26,11 +38,11 @@ _ln2t_tools_completion() {
             return 0
             ;;
         --participant-label|--participant-list)
-            # Get available subjects from the dataset directory
-            if [[ "${words[@]}" =~ "--dataset" ]]; then
-                local dataset_idx=$(echo "${words[@]}" | grep -o "\--dataset" -n | cut -d: -f1)
-                local dataset=${words[$dataset_idx + 1]}
-                local subjects=$(find ~/rawdata/"$dataset"-rawdata -maxdepth 1 -name "sub-*" -type d -printf "%f\n" | sed 's/^sub-//')
+            # Get dataset name from command line
+            local dataset=$(_get_dataset_name)
+            if [ -n "$dataset" ]; then
+                # Get available subjects from the specific dataset directory
+                local subjects=$(find ~/rawdata/"$dataset"-rawdata -maxdepth 1 -name "sub-*" -type d -printf "%f\n" 2>/dev/null | sed 's/^sub-//')
                 COMPREPLY=( $(compgen -W "${subjects}" -- "$cur") )
                 return 0
             fi
