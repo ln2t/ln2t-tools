@@ -248,7 +248,7 @@ def build_apptainer_cmd(tool: str, **options) -> str:
             f"-B {options['rawdata']}:/data:ro "
             f"-B {options['derivatives']}:/derivatives "
             f"{options['apptainer_img']} "
-            f"/data /out participant "
+            f"/data /derivatives participant "
             f"--participant-label {options['participant_label']} "
             f"--output-spaces {options.get('output_spaces', 'MNI152NLin2009cAsym:res-2')} "
             f"--nprocs {options.get('nprocs', 8)} "
