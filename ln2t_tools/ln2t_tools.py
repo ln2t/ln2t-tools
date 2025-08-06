@@ -14,7 +14,8 @@ from ln2t_tools.utils.utils import (
     check_participants_exist,
     get_flair_list,
     launch_apptainer,
-    build_apptainer_cmd
+    build_apptainer_cmd,
+    get_freesurfer_output
 )
 from ln2t_tools.utils.defaults import (
     DEFAULT_RAWDATA,
