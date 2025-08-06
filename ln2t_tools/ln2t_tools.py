@@ -40,7 +40,7 @@ def main(args=None):
             print("  No datasets found in", DEFAULT_RAWDATA)
             
         print("\nUsage example:")
-        print(f"  ln2t_tools --dataset <dataset_name> --tool {args.tool or 'freesurfer'} --participant-label 01")
+        print(f"  ln2t_tools freesurfer --dataset <dataset_name> --participant-label 01")
         return
 
     dataset_rawdata = os.path.join(DEFAULT_RAWDATA, f"{args.dataset}-rawdata")
@@ -63,7 +63,7 @@ def main(args=None):
 
     show_dir_content(dataset_rawdata)
 
-    if args.tools in ["freesurfer", "fmriprep"]:
+    if args.tool in ["freesurfer", "fmriprep"]:  # Changed from args.tools to args.tool
         check_apptainer_is_installed("/usr/bin/apptainer")
         apptainer_img = ensure_image_exists(args.apptainer_dir, args.tool, args.version or DEFAULT_FS_VERSION if args.tool == "freesurfer" else DEFAULT_FMRIPREP_VERSION)
         check_file_exists(args.fs_license)
