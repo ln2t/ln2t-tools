@@ -77,7 +77,7 @@ def process_freesurfer_subject(
     """Process a single subject with FreeSurfer."""
     t1w_files = layout.get(
         subject=participant_label,
-        scope="rawdata",
+        scope="raw",
         suffix="T1w",
         extension=".nii.gz",
         return_type="filename"

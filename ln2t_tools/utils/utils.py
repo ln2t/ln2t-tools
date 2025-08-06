@@ -147,7 +147,7 @@ def check_participants_exist(layout, participant_list):
 
 def get_t1w_list(layout, participant_label):
     t1w_list = layout.get(subject=participant_label,
-                          scope="rawdata",
+                          scope="raw",
                           suffix="T1w",
                           return_type="filename",
                           extension=".nii.gz")
@@ -156,7 +156,7 @@ def get_t1w_list(layout, participant_label):
 
 def get_flair_list(layout, participant_label):
     flair_list = layout.get(subject=participant_label,
-                          scope="rawdata",
+                          scope="raw",
                           suffix="FLAIR",
                           return_type="filename",
                           extension=".nii.gz")
