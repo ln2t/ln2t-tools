@@ -194,7 +194,7 @@ def ensure_image_exists(
     elif tool == "fmriprep":
         tool_owner = "nipreps"
     elif tool == "qsiprep":
-        tool_owner = "pennbbl"
+        tool_owner = "pennlinc"
     else:
         raise ValueError(f"Unsupported tool: {tool}")
     image_path = apptainer_dir / f"{tool_owner}.{tool}.{version}.sif"
