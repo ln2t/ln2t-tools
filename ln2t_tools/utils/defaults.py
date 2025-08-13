@@ -1,10 +1,9 @@
-"""Default va# FreeSurfer license
-DEFAULT_FS_LICENSE = Path("/opt/freesurfer/license.txt")
+"""Default values and constants for ln2t_tools."""
+from pathlib import Path
 
 # Resource management
 MAX_PARALLEL_INSTANCES = 10
-LOCKFILE_DIR = Path("/tmp/ln2t_tools_locks")es and constants for ln2t_tools."""
-from pathlib import Path
+LOCKFILE_DIR = Path("/tmp/ln2t_tools_locks")
 
 # Default directories
 DEFAULT_RAWDATA = Path.home() / Path("rawdata")
