@@ -513,6 +513,10 @@ def main(args=None) -> None:
 
         logger.info(f"Processing datasets: {', '.join(datasets_to_process)}")
 
+        # Track processing results
+        successful_datasets = []
+        failed_datasets = []
+
         # Process each dataset
         for dataset in datasets_to_process:
             logger.info(f"Processing dataset: {dataset}")
@@ -555,6 +559,9 @@ def main(args=None) -> None:
 
                 logger.info(f"Processing {len(participant_list)} participants in dataset {dataset}")
 
+                # Track processing results for this dataset
+                dataset_success = True
+
                 # Process each tool for this dataset
                 for tool, version in tools_to_run.items():
                     if tool not in ["freesurfer", "fmriprep", "qsiprep"]:
@@ -567,51 +574,91 @@ def main(args=None) -> None:
                     args.tool = tool
                     args.version = version
                     
-                    # Check tool requirements
-                    check_apptainer_is_installed("/usr/bin/apptainer")
-                    apptainer_img = ensure_image_exists(args.apptainer_dir, tool, version)
-                    check_file_exists(args.fs_license)
+                    try:
+                        # Check tool requirements
+                        check_apptainer_is_installed("/usr/bin/apptainer")
+                        apptainer_img = ensure_image_exists(args.apptainer_dir, tool, version)
+                        check_file_exists(args.fs_license)
 
-                    # Process each participant with this tool
-                    for participant_label in participant_list:
-                        logger.info(f"Processing participant {participant_label} with {tool}")
-                        
-                        if tool == "freesurfer":
-                            process_freesurfer_subject(
-                                layout=layout,
-                                participant_label=participant_label,
-                                args=args,
-                                dataset_rawdata=dataset_rawdata,
-                                dataset_derivatives=dataset_derivatives,
-                                apptainer_img=apptainer_img
-                            )
-                        elif tool == "fmriprep":
-                            process_fmriprep_subject(
-                                layout=layout,
-                                participant_label=participant_label,
-                                args=args,
-                                dataset_rawdata=dataset_rawdata,
-                                dataset_derivatives=dataset_derivatives,
-                                apptainer_img=apptainer_img
-                            )
-                        elif tool == "qsiprep":
-                            process_qsiprep_subject(
-                                layout=layout,
-                                participant_label=participant_label,
-                                args=args,
-                                dataset_rawdata=dataset_rawdata,
-                                dataset_derivatives=dataset_derivatives,
-                                apptainer_img=apptainer_img
-                            )
+                        # Process each participant with this tool
+                        for participant_label in participant_list:
+                            logger.info(f"Processing participant {participant_label} with {tool}")
+                            
+                            try:
+                                if tool == "freesurfer":
+                                    process_freesurfer_subject(
+                                        layout=layout,
+                                        participant_label=participant_label,
+                                        args=args,
+                                        dataset_rawdata=dataset_rawdata,
+                                        dataset_derivatives=dataset_derivatives,
+                                        apptainer_img=apptainer_img
+                                    )
+                                elif tool == "fmriprep":
+                                    process_fmriprep_subject(
+                                        layout=layout,
+                                        participant_label=participant_label,
+                                        args=args,
+                                        dataset_rawdata=dataset_rawdata,
+                                        dataset_derivatives=dataset_derivatives,
+                                        apptainer_img=apptainer_img
+                                    )
+                                elif tool == "qsiprep":
+                                    process_qsiprep_subject(
+                                        layout=layout,
+                                        participant_label=participant_label,
+                                        args=args,
+                                        dataset_rawdata=dataset_rawdata,
+                                        dataset_derivatives=dataset_derivatives,
+                                        apptainer_img=apptainer_img
+                                    )
+                                logger.info(f"Successfully processed participant {participant_label} with {tool}")
+                            except Exception as e:
+                                logger.error(f"Error processing participant {participant_label} with {tool}: {str(e)}")
+                                dataset_success = False
+                                # Continue with next participant
+                                continue
+                                
+                    except Exception as e:
+                        logger.error(f"Error setting up {tool} for dataset {dataset}: {str(e)}")
+                        dataset_success = False
+                        # Continue with next tool
+                        continue
 
-                logger.info(f"Completed processing dataset: {dataset}")
+                if dataset_success:
+                    logger.info(f"Completed processing dataset: {dataset}")
+                    successful_datasets.append(dataset)
+                else:
+                    logger.warning(f"Completed processing dataset: {dataset} (with some errors)")
+                    failed_datasets.append(dataset)
                 
             except Exception as e:
                 logger.error(f"Error processing dataset {dataset}: {str(e)}")
+                failed_datasets.append(dataset)
                 # Continue with next dataset instead of failing completely
                 continue
 
-        logger.info("All datasets processed successfully")
+        # Report final results
+        if len(datasets_to_process) == 1:
+            # Single dataset case
+            if successful_datasets:
+                logger.info(f"Successfully processed dataset: {successful_datasets[0]}")
+            else:
+                logger.error(f"Failed to process dataset: {failed_datasets[0]}")
+        else:
+            # Multiple datasets case
+            if successful_datasets and not failed_datasets:
+                logger.info(f"Successfully processed all {len(successful_datasets)} datasets: {', '.join(successful_datasets)}")
+            elif successful_datasets and failed_datasets:
+                logger.warning(f"Processed {len(successful_datasets)}/{len(datasets_to_process)} datasets successfully")
+                logger.info(f"Successful: {', '.join(successful_datasets)}")
+                logger.error(f"Failed: {', '.join(failed_datasets)}")
+            else:
+                logger.error(f"Failed to process all {len(failed_datasets)} datasets: {', '.join(failed_datasets)}")
+
+        # Exit with appropriate code
+        if failed_datasets:
+            exit(1)
 
     except Exception as e:
         logger.error(f"Error during processing: {str(e)}")
