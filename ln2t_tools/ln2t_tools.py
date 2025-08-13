@@ -1,5 +1,6 @@
 import os
 import logging
+import pandas as pd
 from typing import Optional, List, Dict
 from pathlib import Path
 from bids import BIDSLayout
@@ -15,13 +16,15 @@ from ln2t_tools.utils.utils import (
     get_flair_list,
     launch_apptainer,
     build_apptainer_cmd,
-    get_freesurfer_output
+    get_freesurfer_output,
+    InstanceManager
 )
 from ln2t_tools.utils.defaults import (
     DEFAULT_RAWDATA,
     DEFAULT_DERIVATIVES,
     DEFAULT_FS_VERSION,
-    DEFAULT_FMRIPREP_VERSION
+    DEFAULT_FMRIPREP_VERSION,
+    DEFAULT_QSIPREP_VERSION
 )
 
 # Setup logging
@@ -35,6 +38,127 @@ def get_available_datasets(rawdata_dir: str) -> List[str]:
     """Get list of available BIDS datasets in the rawdata directory."""
     return [name[:-8] for name in os.listdir(rawdata_dir) 
             if name.endswith("-rawdata")]
+
+def read_processing_config(config_path: Path) -> pd.DataFrame:
+    """Read processing configuration from TSV file.
+    
+    Args:
+        config_path: Path to configuration TSV file
+        
+    Returns:
+        DataFrame with dataset processing configuration
+        
+    Expected format:
+        dataset    freesurfer    fmriprep
+        dataset1   7.3.2         23.1.3
+        dataset2                 25.1.4
+        dataset3   7.4.0         
+    """
+    if not config_path.exists():
+        logger.warning(f"Config file not found: {config_path}")
+        return pd.DataFrame()
+    
+    try:
+        config_df = pd.read_csv(config_path, sep='\t')
+        if 'dataset' not in config_df.columns:
+            raise ValueError("Config file must have a 'dataset' column")
+        
+        # Fill NaN values with empty strings
+        config_df = config_df.fillna('')
+        logger.info(f"Loaded config from {config_path}")
+        return config_df
+    except Exception as e:
+        logger.error(f"Error reading config file {config_path}: {e}")
+        return pd.DataFrame()
+
+def get_datasets_to_process(config_df: pd.DataFrame, dataset_filter: Optional[str] = None) -> List[str]:
+    """Get list of datasets to process based on config and filter.
+    
+    Args:
+        config_df: Configuration DataFrame
+        dataset_filter: Optional dataset name to filter by
+        
+    Returns:
+        List of dataset names to process
+    """
+    if config_df.empty:
+        # Fallback to all available datasets if no config
+        available = get_available_datasets(DEFAULT_RAWDATA)
+        if dataset_filter:
+            return [dataset_filter] if dataset_filter in available else []
+        return available
+    
+    datasets = config_df['dataset'].tolist()
+    
+    if dataset_filter:
+        return [dataset_filter] if dataset_filter in datasets else []
+    
+    return datasets
+
+def get_tools_for_dataset(config_df: pd.DataFrame, dataset: str) -> Dict[str, str]:
+    """Get tools and versions to run for a specific dataset.
+    
+    Args:
+        config_df: Configuration DataFrame
+        dataset: Dataset name
+        
+    Returns:
+        Dictionary mapping tool names to versions
+    """
+    if config_df.empty:
+        # Fallback behavior - return default tools
+        return {}
+    
+    dataset_row = config_df[config_df['dataset'] == dataset]
+    if dataset_row.empty:
+        logger.warning(f"Dataset {dataset} not found in config")
+        return {}
+    
+    tools = {}
+    row = dataset_row.iloc[0]
+    
+    # Check each column for tool specifications
+    for col in config_df.columns:
+        if col != 'dataset' and row[col] and str(row[col]).strip():
+            tools[col] = str(row[col]).strip()
+    
+    return tools
+
+def get_additional_contrasts(
+    layout: BIDSLayout,
+    participant_label: str,
+    session: Optional[str] = None,
+    run: Optional[str] = None
+) -> Dict[str, Optional[str]]:
+    """Get T2w and FLAIR images for a subject if they exist.
+    
+    Args:
+        layout: BIDSLayout object
+        participant_label: Subject ID
+        session: Optional session ID
+        run: Optional run number
+        
+    Returns:
+        Dictionary with T2w and FLAIR file paths
+    """
+    filters = {
+        'subject': participant_label,
+        'scope': 'raw',
+        'extension': '.nii.gz',
+        'session': session,
+        'run': run
+    }
+    
+    # Remove None values from filters
+    filters = {k: v for k, v in filters.items() if v is not None}
+    
+    t2w = layout.get(suffix='T2w', return_type='filename', **filters)
+    flair = layout.get(suffix='FLAIR', return_type='filename', **filters)
+    
+    return {
+        't2w': t2w[0] if t2w else None,
+        'flair': flair[0] if flair else None
+    }
 
 def setup_directories(args) -> tuple[Path, Path, Path]:
     """Setup and validate directory structure for processing.
@@ -126,6 +250,29 @@ def process_single_t1w(
         logger.info(f"Output exists, skipping: {output_participant_dir}")
         return
 
+    # Get additional contrasts
+    additional_contrasts = get_additional_contrasts(
+        layout,
+        participant_label,
+        entities.get('session'),
+        entities.get('run')
+    )
+
+    # Build FreeSurfer command options for additional contrasts
+    fs_options = []
+    if additional_contrasts['t2w']:
+        logger.info(f"Found T2w image for {participant_label}")
+        fs_options.append(f"-T2 {additional_contrasts['t2w']}")
+        fs_options.append("-T2pial")  # Use T2 for pial surface
+    
+    if additional_contrasts['flair']:
+        logger.info(f"Found FLAIR image for {participant_label}")
+        fs_options.append(f"-FLAIR {additional_contrasts['flair']}")
+        fs_options.append("-FLAIRpial")  # Use FLAIR for pial surface
+        if additional_contrasts['t2w']:
+            logger.info("Both T2w and FLAIR images found, using only FLAIR for pial surface")
+
+    # Build and launch FreeSurfer command
     apptainer_cmd = build_apptainer_cmd(
         tool="freesurfer",
         fs_license=args.fs_license,
@@ -136,7 +283,8 @@ def process_single_t1w(
         apptainer_img=apptainer_img,
         output_label=args.output_label or f"freesurfer_{args.version or DEFAULT_FS_VERSION}",
         session=entities.get('session'),
-        run=entities.get('run')
+        run=entities.get('run'),
+        additional_options=" ".join(fs_options)
     )
     launch_apptainer(apptainer_cmd=apptainer_cmd)
 
@@ -235,6 +383,87 @@ def process_fmriprep_subject(
     )
     launch_apptainer(apptainer_cmd=apptainer_cmd)
 
+def process_qsiprep_subject(
+    layout: BIDSLayout,
+    participant_label: str,
+    args,
+    dataset_rawdata: Path,
+    dataset_derivatives: Path,
+    apptainer_img: str
+) -> None:
+    """Process a single subject with QSIPrep.
+    
+    Args:
+        layout: BIDSLayout object for BIDS dataset
+        participant_label: Subject ID without 'sub-' prefix
+        args: Parsed command line arguments
+        dataset_rawdata: Path to BIDS rawdata directory
+        dataset_derivatives: Path to derivatives directory
+        apptainer_img: Path to Apptainer image
+    """
+    # Check for required DWI data
+    dwi_files = layout.get(
+        subject=participant_label,
+        scope="raw",
+        suffix="dwi",
+        extension=".nii.gz",
+        return_type="filename"
+    )
+    
+    if not dwi_files:
+        logger.warning(f"No DWI data found for participant {participant_label}")
+        return
+
+    # Check for anatomical data unless dwi-only is specified
+    if not getattr(args, 'dwi_only', False):
+        t1w_files = layout.get(
+            subject=participant_label,
+            scope="raw",
+            suffix="T1w",
+            extension=".nii.gz",
+            return_type="filename"
+        )
+        
+        if not t1w_files:
+            logger.warning(f"No T1w images found for participant {participant_label}")
+            if not getattr(args, 'anat_only', False):
+                logger.info("Consider using --dwi-only flag for DWI-only processing")
+                return
+
+    # Build output directory path
+    output_subdir = build_bids_subdir(participant_label)
+    output_participant_dir = dataset_derivatives / (
+        args.output_label or 
+        f"qsiprep_{args.version or DEFAULT_QSIPREP_VERSION}"
+    ) / output_subdir
+
+    if output_participant_dir.exists():
+        logger.info(f"Output exists, skipping: {output_participant_dir}")
+        return
+
+    # Validate required arguments for QSIPrep
+    if not getattr(args, 'output_resolution', None):
+        logger.error("--output-resolution is required for QSIPrep")
+        return
+
+    # Build and launch QSIPrep command
+    apptainer_cmd = build_apptainer_cmd(
+        tool="qsiprep",
+        fs_license=args.fs_license,
+        rawdata=str(dataset_rawdata),
+        derivatives=str(dataset_derivatives),
+        participant_label=participant_label,
+        apptainer_img=apptainer_img,
+        output_label=args.output_label or f"qsiprep_{args.version or DEFAULT_QSIPREP_VERSION}",
+        output_resolution=getattr(args, 'output_resolution'),
+        denoise_method=getattr(args, 'denoise_method', 'dwidenoise'),
+        dwi_only="--dwi-only" if getattr(args, 'dwi_only', False) else "",
+        anat_only="--anat-only" if getattr(args, 'anat_only', False) else "",
+        nprocs=getattr(args, 'nprocs', 8),
+        omp_nthreads=getattr(args, 'omp_nthreads', 8)
+    )
+    launch_apptainer(apptainer_cmd=apptainer_cmd)
+
 def main(args=None) -> None:
     """Main entry point for ln2t_tools."""
     if args is None:
@@ -242,69 +471,158 @@ def main(args=None) -> None:
         setup_terminal_colors()
 
     try:
+        # Initialize instance manager
+        instance_manager = InstanceManager(max_instances=getattr(args, 'max_instances', 10))
+        
+        # Check for list operations that don't require instance lock
         if args.list_datasets:
             list_available_datasets()
             return
+        
+        if getattr(args, 'list_instances', False):
+            instance_manager = InstanceManager()
+            instance_manager.list_active_instances()
+            return
 
-        if not args.dataset:
-            available = get_available_datasets(DEFAULT_RAWDATA)
-            datasets_str = "\n  - ".join(available) if available else "No datasets found"
+        # Try to acquire instance lock before processing
+        if not instance_manager.acquire_instance_lock():
+            active_count = instance_manager.get_active_instances()
             logger.error(
-                "No dataset specified.\n"
-                f"Available datasets:\n  - {datasets_str}\n\n"
-                "Usage example:\n"
-                "  ln2t_tools freesurfer --dataset <dataset_name> --participant-label 01"
+                f"Cannot start new instance. "
+                f"Maximum instances ({instance_manager.max_instances}) reached. "
+                f"Currently running: {active_count} instances.\n"
+                f"Please wait for other instances to complete or increase --max-instances."
             )
             return
 
-        dataset_rawdata, dataset_derivatives, output_dir = setup_directories(args)
+        logger.info(f"Instance lock acquired. Active instances: {instance_manager.get_active_instances()}")
 
-        if args.list_missing:
-            list_missing_subjects(dataset_rawdata, output_dir)
-            return
-
-        if args.tool in ["freesurfer", "fmriprep"]:
-            check_apptainer_is_installed("/usr/bin/apptainer")
-            apptainer_img = ensure_image_exists(
-                args.apptainer_dir, 
-                args.tool, 
-                args.version or (DEFAULT_FS_VERSION if args.tool == "freesurfer" 
-                               else DEFAULT_FMRIPREP_VERSION)
-            )
-            check_file_exists(args.fs_license)
-
-        participant_list = (args.participant_list or 
-                          [args.participant_label] if args.participant_label else [])
-
-        layout = BIDSLayout(dataset_rawdata)
-        participant_list = check_participants_exist(layout, participant_list)
-
-        for participant_label in participant_list:
-            if args.tool == "freesurfer":
-                process_freesurfer_subject(
-                    layout=layout,
-                    participant_label=participant_label,
-                    args=args,
-                    dataset_rawdata=dataset_rawdata,
-                    dataset_derivatives=dataset_derivatives,
-                    apptainer_img=apptainer_img
-                )
-            elif args.tool == "fmriprep":
-                process_fmriprep_subject(
-                    layout=layout,
-                    participant_label=participant_label,
-                    args=args,
-                    dataset_rawdata=dataset_rawdata,
-                    dataset_derivatives=dataset_derivatives,
-                    apptainer_img=apptainer_img
-                )
+        # Read processing configuration
+        config_path = Path(DEFAULT_RAWDATA) / "processing_config.tsv"
+        config_df = read_processing_config(config_path)
+        
+        # Get datasets to process based on config and arguments
+        datasets_to_process = get_datasets_to_process(config_df, args.dataset)
+        
+        if not datasets_to_process:
+            if args.dataset:
+                logger.error(f"Dataset '{args.dataset}' not found in config or rawdata directory")
             else:
-                logger.error(f"Unsupported tool: {args.tool}")
-                return
+                logger.error("No datasets found to process")
+            return
+
+        logger.info(f"Processing datasets: {', '.join(datasets_to_process)}")
+
+        # Process each dataset
+        for dataset in datasets_to_process:
+            logger.info(f"Processing dataset: {dataset}")
+            
+            # Get tools to run for this dataset from config
+            tools_to_run = get_tools_for_dataset(config_df, dataset)
+            
+            if not tools_to_run:
+                # Fallback to command line tool if no config
+                if hasattr(args, 'tool') and args.tool:
+                    default_version = DEFAULT_FS_VERSION if args.tool == 'freesurfer' else \
+                                    DEFAULT_FMRIPREP_VERSION if args.tool == 'fmriprep' else \
+                                    DEFAULT_QSIPREP_VERSION
+                    tools_to_run = {args.tool: getattr(args, 'version', None) or default_version}
+                else:
+                    logger.warning(f"No tools specified for dataset {dataset}, skipping")
+                    continue
+            
+            logger.info(f"Tools to run for {dataset}: {tools_to_run}")
+            
+            # Temporarily set the dataset for processing
+            args.dataset = dataset
+            
+            try:
+                dataset_rawdata, dataset_derivatives, _ = setup_directories(args)
+
+                if args.list_missing:
+                    # For list missing, use the first tool specified
+                    first_tool = list(tools_to_run.keys())[0] if tools_to_run else 'freesurfer'
+                    version = tools_to_run.get(first_tool, DEFAULT_FS_VERSION)
+                    output_dir = dataset_derivatives / f"{first_tool}_{version}"
+                    list_missing_subjects(dataset_rawdata, output_dir)
+                    continue
+
+                layout = BIDSLayout(dataset_rawdata)
+                
+                # Get participants to process
+                participant_list = args.participant_label if args.participant_label else []
+                participant_list = check_participants_exist(layout, participant_list)
+
+                logger.info(f"Processing {len(participant_list)} participants in dataset {dataset}")
+
+                # Process each tool for this dataset
+                for tool, version in tools_to_run.items():
+                    if tool not in ["freesurfer", "fmriprep", "qsiprep"]:
+                        logger.warning(f"Unsupported tool {tool} for dataset {dataset}, skipping")
+                        continue
+                    
+                    logger.info(f"Running {tool} version {version} for dataset {dataset}")
+                    
+                    # Set tool and version in args for this iteration
+                    args.tool = tool
+                    args.version = version
+                    
+                    # Check tool requirements
+                    check_apptainer_is_installed("/usr/bin/apptainer")
+                    apptainer_img = ensure_image_exists(args.apptainer_dir, tool, version)
+                    check_file_exists(args.fs_license)
+
+                    # Process each participant with this tool
+                    for participant_label in participant_list:
+                        logger.info(f"Processing participant {participant_label} with {tool}")
+                        
+                        if tool == "freesurfer":
+                            process_freesurfer_subject(
+                                layout=layout,
+                                participant_label=participant_label,
+                                args=args,
+                                dataset_rawdata=dataset_rawdata,
+                                dataset_derivatives=dataset_derivatives,
+                                apptainer_img=apptainer_img
+                            )
+                        elif tool == "fmriprep":
+                            process_fmriprep_subject(
+                                layout=layout,
+                                participant_label=participant_label,
+                                args=args,
+                                dataset_rawdata=dataset_rawdata,
+                                dataset_derivatives=dataset_derivatives,
+                                apptainer_img=apptainer_img
+                            )
+                        elif tool == "qsiprep":
+                            process_qsiprep_subject(
+                                layout=layout,
+                                participant_label=participant_label,
+                                args=args,
+                                dataset_rawdata=dataset_rawdata,
+                                dataset_derivatives=dataset_derivatives,
+                                apptainer_img=apptainer_img
+                            )
+
+                logger.info(f"Completed processing dataset: {dataset}")
+                
+            except Exception as e:
+                logger.error(f"Error processing dataset {dataset}: {str(e)}")
+                # Continue with next dataset instead of failing completely
+                continue
+
+        logger.info("All datasets processed successfully")
 
     except Exception as e:
         logger.error(f"Error during processing: {str(e)}")
         raise
+    finally:
+        # Ensure instance lock is released
+        try:
+            if 'instance_manager' in locals():
+                instance_manager.release_instance_lock()
+        except:
+            pass
 
 if __name__ == "__main__":
     main()

@@ -1,18 +1,160 @@
 import os
 import shutil
 import logging
+import time
+import fcntl
+import signal
+import atexit
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict
 from warnings import warn
 
 from bids import BIDSLayout
 
 from ln2t_tools.utils.defaults import (
     DEFAULT_RAWDATA,
-    DEFAULT_DERIVATIVES
+    DEFAULT_DERIVATIVES,
+    MAX_PARALLEL_INSTANCES,
+    LOCKFILE_DIR
 )
 
 logger = logging.getLogger(__name__)
+
+class InstanceManager:
+    """Manages parallel instances of ln2t_tools to prevent resource overload."""
+    
+    def __init__(self, max_instances: int = MAX_PARALLEL_INSTANCES):
+        self.max_instances = max_instances
+        self.lockfile_dir = LOCKFILE_DIR
+        self.lockfile_dir.mkdir(exist_ok=True)
+        self.lockfile_path = None
+        self.lock_fd = None
+        
+    def acquire_instance_lock(self) -> bool:
+        """Acquire a lock for this instance.
+        
+        Returns:
+            True if lock acquired successfully, False if max instances reached
+        """
+        # Clean up stale lock files first
+        self._cleanup_stale_locks()
+        
+        # Count current active instances
+        active_locks = list(self.lockfile_dir.glob("ln2t_tools_*.lock"))
+        
+        if len(active_locks) >= self.max_instances:
+            logger.warning(f"Maximum number of instances ({self.max_instances}) already running")
+            return False
+        
+        # Create lock file for this instance
+        import uuid
+        instance_id = str(uuid.uuid4())[:8]
+        self.lockfile_path = self.lockfile_dir / f"ln2t_tools_{instance_id}.lock"
+        
+        try:
+            self.lock_fd = open(self.lockfile_path, 'w')
+            fcntl.flock(self.lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            
+            # Write process info to lock file
+            self.lock_fd.write(f"{os.getpid()}\n{time.time()}\n")
+            self.lock_fd.flush()
+            
+            # Register cleanup on exit
+            atexit.register(self.release_instance_lock)
+            signal.signal(signal.SIGTERM, self._signal_handler)
+            signal.signal(signal.SIGINT, self._signal_handler)
+            
+            logger.info(f"Acquired instance lock: {self.lockfile_path.name}")
+            return True
+            
+        except (IOError, OSError) as e:
+            logger.error(f"Failed to acquire lock: {e}")
+            if self.lock_fd:
+                self.lock_fd.close()
+            if self.lockfile_path and self.lockfile_path.exists():
+                self.lockfile_path.unlink()
+            return False
+    
+    def release_instance_lock(self) -> None:
+        """Release the instance lock."""
+        if self.lock_fd:
+            try:
+                fcntl.flock(self.lock_fd.fileno(), fcntl.LOCK_UN)
+                self.lock_fd.close()
+            except:
+                pass
+            self.lock_fd = None
+        
+        if self.lockfile_path and self.lockfile_path.exists():
+            try:
+                self.lockfile_path.unlink()
+                logger.info(f"Released instance lock: {self.lockfile_path.name}")
+            except:
+                pass
+            self.lockfile_path = None
+    
+    def _cleanup_stale_locks(self) -> None:
+        """Remove lock files from dead processes."""
+        for lockfile in self.lockfile_dir.glob("ln2t_tools_*.lock"):
+            try:
+                with open(lockfile, 'r') as f:
+                    lines = f.readlines()
+                    if len(lines) >= 1:
+                        pid = int(lines[0].strip())
+                        
+                        # Check if process is still running
+                        try:
+                            os.kill(pid, 0)  # Signal 0 checks if process exists
+                        except OSError:
+                            # Process is dead, remove stale lock
+                            lockfile.unlink()
+                            logger.info(f"Removed stale lock file: {lockfile.name}")
+            except (ValueError, IOError, OSError):
+                # Invalid lock file, remove it
+                try:
+                    lockfile.unlink()
+                    logger.info(f"Removed invalid lock file: {lockfile.name}")
+                except:
+                    pass
+    
+    def _signal_handler(self, signum, frame):
+        """Handle termination signals."""
+        logger.info(f"Received signal {signum}, cleaning up...")
+        self.release_instance_lock()
+        exit(1)
+    
+    def get_active_instances(self) -> int:
+        """Get the number of currently active instances.
+        
+        Returns:
+            Number of active instances
+        """
+        self._cleanup_stale_locks()
+        return len(list(self.lockfile_dir.glob("ln2t_tools_*.lock")))
+    
+    def list_active_instances(self) -> None:
+        """List information about currently active instances."""
+        self._cleanup_stale_locks()
+        lockfiles = list(self.lockfile_dir.glob("ln2t_tools_*.lock"))
+        
+        if not lockfiles:
+            logger.info("No active ln2t_tools instances found")
+            return
+        
+        logger.info(f"Found {len(lockfiles)} active instances:")
+        for i, lockfile in enumerate(lockfiles, 1):
+            try:
+                with open(lockfile, 'r') as f:
+                    lines = f.readlines()
+                    if len(lines) >= 2:
+                        pid = lines[0].strip()
+                        start_time = float(lines[1].strip())
+                        duration = time.time() - start_time
+                        logger.info(f"  {i}. PID: {pid}, Running for: {duration:.1f}s, Lock: {lockfile.name}")
+                    else:
+                        logger.info(f"  {i}. Lock: {lockfile.name} (incomplete lock file)")
+            except Exception as e:
+                logger.info(f"  {i}. Lock: {lockfile.name} (error reading: {e})")
 
 def check_apptainer_is_installed(apptainer_path: str = "/usr/bin/apptainer") -> None:
     """Verify Apptainer is installed and accessible.
@@ -38,7 +180,7 @@ def ensure_image_exists(
     
     Args:
         apptainer_dir: Directory containing Apptainer images
-        tool: Tool name ('freesurfer' or 'fmriprep')
+        tool: Tool name ('freesurfer', 'fmriprep', or 'qsiprep')
         version: Tool version
         
     Returns:
@@ -51,6 +193,8 @@ def ensure_image_exists(
         tool_owner = "freesurfer"
     elif tool == "fmriprep":
         tool_owner = "nipreps"
+    elif tool == "qsiprep":
+        tool_owner = "pennbbl"
     else:
         raise ValueError(f"Unsupported tool: {tool}")
     image_path = apptainer_dir / f"{tool_owner}.{tool}.{version}.sif"
@@ -196,27 +340,7 @@ def get_freesurfer_output(
     return fs_dir if fs_dir.exists() and (fs_dir / "surf/rh.white").exists() else None
 
 def build_apptainer_cmd(tool: str, **options) -> str:
-    """Build Apptainer command for neuroimaging tools.
-    
-    Args:
-        tool: Tool name ('freesurfer' or 'fmriprep')
-        **options: Tool-specific options including:
-            - fs_license: Path to FreeSurfer license
-            - rawdata: Path to BIDS rawdata
-            - derivatives: Path to derivatives directory
-            - participant_label: Subject ID
-            - apptainer_img: Path to Apptainer image
-            - output_label: Output directory name
-            - session: Optional session ID (FreeSurfer)
-            - run: Optional run number (FreeSurfer)
-            - fs_no_reconall: Skip FreeSurfer reconstruction (fMRIPrep)
-            - output_spaces: Output spaces (fMRIPrep)
-            - nprocs: Number of processes (fMRIPrep)
-            - omp_nthreads: OpenMP threads (fMRIPrep)
-    
-    Returns:
-        Formatted Apptainer command
-    """
+    """Build Apptainer command for neuroimaging tools."""
     if tool == "freesurfer":
         if "fs_license" not in options:
             raise ValueError("FreeSurfer license file path is required")
@@ -233,7 +357,8 @@ def build_apptainer_cmd(tool: str, **options) -> str:
             f"-B {options['rawdata']}:/rawdata:ro -B {options['derivatives']}:/derivatives "
             f"{options['apptainer_img']} recon-all -all -subjid {subject_id} "
             f"-i {options['t1w']} "
-            f"-sd /derivatives/{options['output_label']} {options.get('flair_option', '')}"
+            f"-sd /derivatives/{options['output_label']} "
+            f"{options.get('additional_options', '')}"
         )
     elif tool == "fmriprep":
         fs_subjects_dir = options.get('fs_subjects_dir', '')
@@ -262,6 +387,23 @@ def build_apptainer_cmd(tool: str, **options) -> str:
             f"{options.get('fs_no_reconall', '')} "
             f"{fs_subjects_dir_option}"
         )
+    elif tool == "qsiprep":
+        return (
+            f"apptainer run "
+            f"-B {options['fs_license']}:/opt/freesurfer/license.txt "
+            f"-B {options['rawdata']}:/data:ro "
+            f"-B {options['derivatives']}:/out "
+            f"{options['apptainer_img']} "
+            f"/data /out participant "
+            f"--participant-label {options['participant_label']} "
+            f"--output-resolution {options['output_resolution']} "
+            f"--denoise-method {options.get('denoise_method', 'dwidenoise')} "
+            f"--nprocs {options.get('nprocs', 8)} "
+            f"--omp-nthreads {options.get('omp_nthreads', 8)} "
+            f"--fs-license-file /opt/freesurfer/license.txt "
+            f"{options.get('dwi_only', '')} "
+            f"{options.get('anat_only', '')}"
+        )
     
     else:
         raise ValueError(f"Unsupported tool: {tool}")
@@ -270,4 +412,41 @@ def build_apptainer_cmd(tool: str, **options) -> str:
 def launch_apptainer(apptainer_cmd):
     print(f"Launching apptainer image {apptainer_cmd}")
     os.system(apptainer_cmd)
+
+
+def get_additional_contrasts(
+    layout: BIDSLayout,
+    participant_label: str,
+    session: Optional[str] = None,
+    run: Optional[str] = None
+) -> Dict[str, Optional[str]]:
+    """Get T2w and FLAIR images for a subject if they exist.
+    
+    Args:
+        layout: BIDSLayout object
+        participant_label: Subject ID
+        session: Optional session ID
+        run: Optional run number
+        
+    Returns:
+        Dictionary with T2w and FLAIR file paths
+    """
+    filters = {
+        'subject': participant_label,
+        'scope': 'raw',
+        'extension': '.nii.gz',
+        'session': session,
+        'run': run
+    }
+    
+    # Remove None values from filters
+    filters = {k: v for k, v in filters.items() if v is not None}
+    
+    t2w = layout.get(suffix='T2w', return_type='filename', **filters)
+    flair = layout.get(suffix='FLAIR', return_type='filename', **filters)
+    
+    return {
+        't2w': t2w[0] if t2w else None,
+        'flair': flair[0] if flair else None
+    }
 

@@ -8,7 +8,8 @@ from types import TracebackType  # Add this import
 
 from ln2t_tools.utils.defaults import (
     DEFAULT_FS_LICENSE,
-    DEFAULT_APPTAINER_DIR
+    DEFAULT_APPTAINER_DIR,
+    MAX_PARALLEL_INSTANCES
 )
 
 
@@ -25,8 +26,9 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument(
         "tool",
-        choices=["freesurfer", "fmriprep"],
-        help="Neuroimaging tool to use"
+        nargs='?',  # Make tool optional
+        choices=["freesurfer", "fmriprep", "qsiprep"],
+        help="Neuroimaging tool to use (optional if using config file)"
     )
 
     parser.add_argument(
@@ -36,13 +38,8 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument(
         "--participant-label",
-        help="Single participant label (without 'sub-' prefix)"
-    )
-
-    parser.add_argument(
-        "--participant-list",
-        nargs="+",
-        help="List of participant labels to process"
+        nargs='+',
+        help="One or more participant labels (without 'sub-' prefix)"
     )
 
     parser.add_argument(
@@ -82,6 +79,12 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--list-instances",
+        action="store_true",
+        help="Show currently running instances"
+    )
+
+    parser.add_argument(
         "--fs-no-reconall",
         action="store_true",
         help="Skip FreeSurfer surface reconstruction (fMRIPrep only)"
@@ -105,6 +108,39 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=8,
         help="Number of OpenMP threads (default: 8)"
+    )
+
+    # QSIPrep specific arguments
+    parser.add_argument(
+        "--output-resolution",
+        type=float,
+        help="Isotropic voxel size in mm for QSIPrep output (required for QSIPrep)"
+    )
+
+    parser.add_argument(
+        "--denoise-method",
+        choices=["dwidenoise", "patch2self", "none"],
+        default="dwidenoise",
+        help="Denoising method for QSIPrep (default: dwidenoise)"
+    )
+
+    parser.add_argument(
+        "--dwi-only",
+        action="store_true",
+        help="Process only DWI data, ignore anatomical data (QSIPrep only)"
+    )
+
+    parser.add_argument(
+        "--anat-only",
+        action="store_true",
+        help="Process only anatomical data (QSIPrep only)"
+    )
+
+    parser.add_argument(
+        "--max-instances",
+        type=int,
+        default=MAX_PARALLEL_INSTANCES,
+        help=f"Maximum number of parallel instances (default: {MAX_PARALLEL_INSTANCES})"
     )
 
     return parser.parse_args()

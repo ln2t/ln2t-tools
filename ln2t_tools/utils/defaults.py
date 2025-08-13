@@ -1,4 +1,9 @@
-"""Default values and constants for ln2t_tools."""
+"""Default va# FreeSurfer license
+DEFAULT_FS_LICENSE = Path("/opt/freesurfer/license.txt")
+
+# Resource management
+MAX_PARALLEL_INSTANCES = 10
+LOCKFILE_DIR = Path("/tmp/ln2t_tools_locks")es and constants for ln2t_tools."""
 from pathlib import Path
 
 # Default directories
@@ -9,6 +14,7 @@ DEFAULT_APPTAINER_DIR = Path("/opt/apptainer")
 # Tool versions
 DEFAULT_FS_VERSION = "7.3.2"
 DEFAULT_FMRIPREP_VERSION = "25.1.4"
+DEFAULT_QSIPREP_VERSION = "0.24.0"
 
 # FreeSurfer license
 DEFAULT_FS_LICENSE = Path("/opt/freesurfer/.license")

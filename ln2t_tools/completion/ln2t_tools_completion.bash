@@ -5,7 +5,7 @@ _ln2t_tools_completion() {
     _init_completion || return
 
     # List of tools
-    local tools="freesurfer fmriprep"
+    local tools="freesurfer fmriprep qsiprep"
     
     # Function to get dataset name from command line
     _get_dataset_name() {
@@ -19,15 +19,39 @@ _ln2t_tools_completion() {
         return 1
     }
 
+    # Function to check if we're completing participant labels
+    _completing_participants() {
+        local words=("${COMP_WORDS[@]}")
+        for ((i=1; i<${#words[@]}; i++)); do
+            if [[ "${words[i]}" == "--participant-label" ]]; then
+                # Check if current position is after --participant-label
+                if [[ $cword -gt $i ]]; then
+                    return 0
+                fi
+            fi
+        done
+        return 1
+    }
+
     # Handle basic commands
     if [ $cword -eq 1 ]; then
         COMPREPLY=( $(compgen -W "${tools}" -- "$cur") )
         return 0
     fi
 
+    # Check if we're completing participant labels (can be multiple)
+    if _completing_participants; then
+        local dataset=$(_get_dataset_name)
+        if [ -n "$dataset" ]; then
+            local subjects=$(find ~/rawdata/"$dataset"-rawdata -maxdepth 1 -name "sub-*" -type d -printf "%f\n" 2>/dev/null | sed 's/^sub-//')
+            COMPREPLY=( $(compgen -W "${subjects}" -- "$cur") )
+            return 0
+        fi
+    fi
+
     # Handle options
     case $prev in
-        freesurfer|fmriprep)
+        freesurfer|fmriprep|qsiprep)
             COMPREPLY=( $(compgen -W "--dataset" -- "$cur") )
             return 0
             ;;
@@ -37,7 +61,7 @@ _ln2t_tools_completion() {
             COMPREPLY=( $(compgen -W "${datasets}" -- "$cur") )
             return 0
             ;;
-        --participant-label|--participant-list)
+        --participant-label)
             # Get dataset name from command line
             local dataset=$(_get_dataset_name)
             if [ -n "$dataset" ]; then
@@ -49,11 +73,16 @@ _ln2t_tools_completion() {
             ;;
         *)
             # Other options based on context
-            local opts="--participant-label --participant-list --output-label --fs-license --apptainer-dir --version --list-datasets --list-missing"
+            local opts="--participant-label --output-label --fs-license --apptainer-dir --version --list-datasets --list-missing --list-instances --max-instances"
             
             # Add fMRIPrep specific options
             if [[ ${words[1]} == "fmriprep" ]]; then
                 opts+=" --fs-no-reconall --output-spaces --nprocs --omp-nthreads"
+            fi
+            
+            # Add QSIPrep specific options
+            if [[ ${words[1]} == "qsiprep" ]]; then
+                opts+=" --output-resolution --denoise-method --dwi-only --anat-only --nprocs --omp-nthreads"
             fi
             
             COMPREPLY=( $(compgen -W "${opts}" -- "$cur") )
