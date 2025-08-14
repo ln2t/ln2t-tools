@@ -484,19 +484,6 @@ def main(args=None) -> None:
             instance_manager.list_active_instances()
             return
 
-        # Try to acquire instance lock before processing
-        if not instance_manager.acquire_instance_lock():
-            active_count = instance_manager.get_active_instances()
-            logger.error(
-                f"Cannot start new instance. "
-                f"Maximum instances ({instance_manager.max_instances}) reached. "
-                f"Currently running: {active_count} instances.\n"
-                f"Please wait for other instances to complete or increase --max-instances."
-            )
-            return
-
-        logger.info(f"Instance lock acquired. Active instances: {instance_manager.get_active_instances()}")
-
         # Read processing configuration
         config_path = Path(DEFAULT_RAWDATA) / "processing_config.tsv"
         config_df = read_processing_config(config_path)
@@ -511,6 +498,46 @@ def main(args=None) -> None:
                 logger.error("No datasets found to process")
             return
 
+        # Collect all tools and participants for lock information
+        all_tools = set()
+        all_participants = set()
+        
+        for dataset in datasets_to_process:
+            tools_to_run = get_tools_for_dataset(config_df, dataset)
+            if not tools_to_run and hasattr(args, 'tool') and args.tool:
+                tools_to_run = {args.tool: getattr(args, 'version', None)}
+            all_tools.update(tools_to_run.keys() if tools_to_run else [])
+            
+            # Get participants for this dataset
+            try:
+                dataset_rawdata = Path(DEFAULT_RAWDATA) / f"{dataset}-rawdata"
+                if dataset_rawdata.exists():
+                    layout = BIDSLayout(dataset_rawdata)
+                    participant_list = args.participant_label if args.participant_label else []
+                    participant_list = check_participants_exist(layout, participant_list)
+                    all_participants.update([f"sub-{p}" for p in participant_list])
+            except:
+                pass  # Skip if we can't determine participants yet
+
+        # Try to acquire instance lock before processing with collected information
+        dataset_str = ", ".join(datasets_to_process) if len(datasets_to_process) > 1 else datasets_to_process[0]
+        tool_str = ", ".join(all_tools) if len(all_tools) > 1 else (list(all_tools)[0] if all_tools else "unknown")
+        
+        if not instance_manager.acquire_instance_lock(
+            dataset=dataset_str,
+            tool=tool_str,
+            participants=list(all_participants)
+        ):
+            active_count = instance_manager.get_active_instances()
+            logger.error(
+                f"Cannot start new instance. "
+                f"Maximum instances ({instance_manager.max_instances}) reached. "
+                f"Currently running: {active_count} instances.\n"
+                f"Please wait for other instances to complete or increase --max-instances."
+            )
+            return
+
+        logger.info(f"Instance lock acquired. Active instances: {instance_manager.get_active_instances()}")
         logger.info(f"Processing datasets: {', '.join(datasets_to_process)}")
 
         # Track processing results

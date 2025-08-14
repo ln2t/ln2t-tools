@@ -5,6 +5,9 @@ import time
 import fcntl
 import signal
 import atexit
+import json
+import socket
+import getpass
 from pathlib import Path
 from typing import List, Optional, Dict
 from warnings import warn
@@ -30,8 +33,13 @@ class InstanceManager:
         self.lockfile_path = None
         self.lock_fd = None
         
-    def acquire_instance_lock(self) -> bool:
+    def acquire_instance_lock(self, dataset: str = None, tool: str = None, participants: List[str] = None) -> bool:
         """Acquire a lock for this instance.
+        
+        Args:
+            dataset: Dataset name being processed
+            tool: Tool being used (freesurfer, fmriprep, qsiprep)
+            participants: List of participant labels being processed
         
         Returns:
             True if lock acquired successfully, False if max instances reached
@@ -46,17 +54,28 @@ class InstanceManager:
             logger.warning(f"Maximum number of instances ({self.max_instances}) already running")
             return False
         
-        # Create lock file for this instance
-        import uuid
-        instance_id = str(uuid.uuid4())[:8]
-        self.lockfile_path = self.lockfile_dir / f"ln2t_tools_{instance_id}.lock"
+        # Create lock file for this instance using PID
+        pid = os.getpid()
+        self.lockfile_path = self.lockfile_dir / f"ln2t_tools_{pid}.lock"
         
         try:
             self.lock_fd = open(self.lockfile_path, 'w')
             fcntl.flock(self.lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             
-            # Write process info to lock file
-            self.lock_fd.write(f"{os.getpid()}\n{time.time()}\n")
+            # Create lock data structure
+            lock_data = {
+                "pid": pid,
+                "dataset": dataset or "unknown",
+                "tool": tool or "unknown",
+                "participants": participants or [],
+                "hostname": socket.gethostname(),
+                "user": getpass.getuser(),
+                "start_time": int(time.time()),
+                "lock_file": self.lockfile_path.name
+            }
+            
+            # Write JSON data to lock file
+            json.dump(lock_data, self.lock_fd, indent=2)
             self.lock_fd.flush()
             
             # Register cleanup on exit
@@ -98,10 +117,10 @@ class InstanceManager:
         for lockfile in self.lockfile_dir.glob("ln2t_tools_*.lock"):
             try:
                 with open(lockfile, 'r') as f:
-                    lines = f.readlines()
-                    if len(lines) >= 1:
-                        pid = int(lines[0].strip())
-                        
+                    lock_data = json.load(f)
+                    pid = lock_data.get("pid")
+                    
+                    if pid:
                         # Check if process is still running
                         try:
                             os.kill(pid, 0)  # Signal 0 checks if process exists
@@ -109,7 +128,11 @@ class InstanceManager:
                             # Process is dead, remove stale lock
                             lockfile.unlink()
                             logger.info(f"Removed stale lock file: {lockfile.name}")
-            except (ValueError, IOError, OSError):
+                    else:
+                        # Invalid lock file format, remove it
+                        lockfile.unlink()
+                        logger.info(f"Removed invalid lock file: {lockfile.name}")
+            except (json.JSONDecodeError, KeyError, IOError, OSError):
                 # Invalid lock file, remove it
                 try:
                     lockfile.unlink()
@@ -145,15 +168,28 @@ class InstanceManager:
         for i, lockfile in enumerate(lockfiles, 1):
             try:
                 with open(lockfile, 'r') as f:
-                    lines = f.readlines()
-                    if len(lines) >= 2:
-                        pid = lines[0].strip()
-                        start_time = float(lines[1].strip())
-                        duration = time.time() - start_time
-                        logger.info(f"  {i}. PID: {pid}, Running for: {duration:.1f}s, Lock: {lockfile.name}")
-                    else:
-                        logger.info(f"  {i}. Lock: {lockfile.name} (incomplete lock file)")
-            except Exception as e:
+                    lock_data = json.load(f)
+                    
+                    pid = lock_data.get("pid", "unknown")
+                    dataset = lock_data.get("dataset", "unknown")
+                    tool = lock_data.get("tool", "unknown")
+                    participants = lock_data.get("participants", [])
+                    hostname = lock_data.get("hostname", "unknown")
+                    user = lock_data.get("user", "unknown")
+                    start_time = lock_data.get("start_time", 0)
+                    
+                    # Calculate duration
+                    duration = time.time() - start_time if start_time else 0
+                    
+                    # Format participant list
+                    participant_str = ", ".join(participants) if participants else "none"
+                    
+                    logger.info(f"  {i}. PID: {pid}, User: {user}@{hostname}")
+                    logger.info(f"      Dataset: {dataset}, Tool: {tool}")
+                    logger.info(f"      Participants: {participant_str}")
+                    logger.info(f"      Running for: {duration:.1f}s, Lock: {lockfile.name}")
+                    
+            except (json.JSONDecodeError, KeyError, Exception) as e:
                 logger.info(f"  {i}. Lock: {lockfile.name} (error reading: {e})")
 
 def check_apptainer_is_installed(apptainer_path: str = "/usr/bin/apptainer") -> None:
