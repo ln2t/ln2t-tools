@@ -401,6 +401,7 @@ def build_apptainer_cmd(tool: str, **options) -> str:
             f"--nprocs {options.get('nprocs', 8)} "
             f"--omp-nthreads {options.get('omp_nthreads', 8)} "
             f"--fs-license-file /opt/freesurfer/license.txt "
+            f"--skip-bids-validation "
             f"{options.get('dwi_only', '')} "
             f"{options.get('anat_only', '')}"
         )
